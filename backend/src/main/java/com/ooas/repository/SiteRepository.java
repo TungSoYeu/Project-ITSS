@@ -1,6 +1,6 @@
 package com.ooas.repository;
 
-import com.ooas.domain.Site;
+import com.ooas.entity.Site;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;

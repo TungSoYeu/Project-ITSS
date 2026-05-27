@@ -1,6 +1,6 @@
 package com.ooas.repository;
 
-import com.ooas.domain.Sku;
+import com.ooas.entity.Sku;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;

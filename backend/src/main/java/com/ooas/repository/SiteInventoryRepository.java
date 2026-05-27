@@ -1,6 +1,6 @@
 package com.ooas.repository;
 
-import com.ooas.domain.SiteInventory;
+import com.ooas.entity.SiteInventory;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;

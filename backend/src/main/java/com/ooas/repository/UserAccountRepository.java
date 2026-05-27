@@ -1,7 +1,7 @@
 package com.ooas.repository;
 
-import com.ooas.domain.AccountStatus;
-import com.ooas.domain.UserAccount;
+import com.ooas.entity.AccountStatus;
+import com.ooas.entity.UserAccount;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;

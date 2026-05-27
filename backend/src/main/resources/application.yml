@@ -5,9 +5,9 @@ spring:
   application:
     name: ooas
   datasource:
-    url: jdbc:postgresql://localhost:5432/ooas_spring
+    url: jdbc:postgresql://localhost:5432/ooas
     username: postgres
-    password: postgres
+    password: tvantung1904
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:

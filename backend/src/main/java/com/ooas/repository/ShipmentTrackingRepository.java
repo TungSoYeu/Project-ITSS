@@ -1,6 +1,6 @@
 package com.ooas.repository;
 
-import com.ooas.domain.ShipmentTracking;
+import com.ooas.entity.ShipmentTracking;
 import java.util.List;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;

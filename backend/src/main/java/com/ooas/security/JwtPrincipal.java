@@ -1,6 +1,6 @@
 package com.ooas.security;
 
-import com.ooas.domain.Role;
+import com.ooas.entity.Role;
 
 public record JwtPrincipal(
         String id,

@@ -34,12 +34,9 @@ mvn spring-boot:run
 
 API mac dinh chay tai `http://localhost:3000`.
 
-## Tai khoan mau
+## Tai khoan test
 
-- Admin: `admin@ooas.com` / `Admin@123`
-- Sales: `sales1@ooas.com` / `User@1234`
-- Overseas Order: `overseas1@ooas.com` / `User@1234`
-- Warehouse: `warehouse1@ooas.com` / `User@1234`
+Vui long khoi tao (seed) database bang Flyway de co du lieu mau hoac lien he Admin de duoc cung cap tai khoan test.
 
 ## Module API chinh
 

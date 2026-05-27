@@ -1,7 +1,7 @@
 package com.ooas.repository;
 
-import com.ooas.domain.OrderRequest;
-import com.ooas.domain.RequestStatus;
+import com.ooas.dto.OrderRequest;
+import com.ooas.entity.RequestStatus;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;

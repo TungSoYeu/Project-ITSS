@@ -1,7 +1,7 @@
 package com.ooas.repository;
 
-import com.ooas.domain.POStatus;
-import com.ooas.domain.PurchaseOrder;
+import com.ooas.entity.POStatus;
+import com.ooas.entity.PurchaseOrder;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
