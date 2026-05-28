@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3001'; // Spring Boot runs on 3001
+const API_URL = 'http://localhost:3000'; // Spring Boot runs on 3000
 
 const axiosInstance = axios.create({
   baseURL: API_URL,

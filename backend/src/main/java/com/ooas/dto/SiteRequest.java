@@ -13,10 +13,10 @@ public record SiteRequest(
         @NotBlank(message = "Quoc gia khong duoc de trong")
         String country,
 
-        @Min(value = 1, message = "Sea lead time phai lon hon 0")
+        @Min(value = 0, message = "Sea lead time khong duoc am")
         int seaLeadTime,
 
-        @Min(value = 1, message = "Air lead time phai lon hon 0")
+        @Min(value = 0, message = "Air lead time khong duoc am")
         int airLeadTime,
 
         Boolean active
