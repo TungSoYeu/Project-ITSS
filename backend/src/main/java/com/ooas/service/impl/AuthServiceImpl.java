@@ -118,4 +118,35 @@ public class AuthServiceImpl implements AuthService {
         user.setRole(role);
         return Map.of("message", "Da cap nhat vai tro cho " + user.getFullName(), "user", UserResponse.from(user));
     }
+
+    @Transactional
+    public Map<String, Object> updateProfile(@NonNull String userId, com.ooas.dto.UpdateProfileRequest request) {
+        UserAccount user = requireUser(userId);
+        
+        if (!user.getEmployeeId().equalsIgnoreCase(request.employeeId()) && 
+            userRepository.existsByEmployeeIdIgnoreCase(request.employeeId())) {
+            throw ApiException.conflict("Mã nhân viên đã tồn tại");
+        }
+
+        user.setFullName(request.fullName().trim());
+        user.setEmployeeId(request.employeeId().trim());
+        
+        return Map.of(
+            "message", "Cập nhật thông tin thành công",
+            "user", UserResponse.from(user)
+        );
+    }
+
+    @Transactional
+    public Map<String, Object> changePassword(@NonNull String userId, com.ooas.dto.ChangePasswordRequest request) {
+        UserAccount user = requireUser(userId);
+
+        if (!passwordEncoder.matches(request.oldPassword(), user.getPassword())) {
+            throw ApiException.badRequest("Mật khẩu hiện tại không chính xác");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+
+        return Map.of("message", "Đổi mật khẩu thành công");
+    }
 }

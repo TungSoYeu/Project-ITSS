@@ -29,7 +29,7 @@ copy .env.example .env
 3. Chay backend:
 
 ```bash
-mvn spring-boot:run
+.\mvnw spring-boot:run
 ```
 
 API mac dinh chay tai `http://localhost:3000`.

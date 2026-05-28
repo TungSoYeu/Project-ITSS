@@ -37,7 +37,7 @@ public class OrderRequestServiceImpl implements OrderRequestService {
 
     @Transactional(readOnly = true)
     public List<OrderRequestResponse> list(RequestStatus status, String search) {
-        String normalizedSearch = StringUtils.hasText(search) ? search.trim() : null;
+        String normalizedSearch = StringUtils.hasText(search) ? search.trim() : "";
         return requestRepository.search(status, normalizedSearch).stream()
                 .map(request -> OrderRequestResponse.from(request, false))
                 .toList();

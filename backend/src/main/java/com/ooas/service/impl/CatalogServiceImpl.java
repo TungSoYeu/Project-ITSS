@@ -134,6 +134,6 @@ public class CatalogServiceImpl implements CatalogService {
     }
 
     private String normalize(String value) {
-        return StringUtils.hasText(value) ? value.trim() : null;
+        return StringUtils.hasText(value) ? value.trim() : "";
     }
 }

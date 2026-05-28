@@ -1,5 +1,6 @@
 {
     "java.configuration.updateBuildConfiguration": "interactive",
     "java.compile.nullAnalysis.mode": "automatic",
-    "maven.view": "flat"
+    "maven.view": "flat",
+    "java.project.explorer.showNonJavaResources": false
 }

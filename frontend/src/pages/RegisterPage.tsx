@@ -32,7 +32,7 @@ export default function RegisterPage() {
           <div className="form-group"><label htmlFor="fullName">Họ và tên</label><div className="input-wrapper"><User size={18} /><input id="fullName" name="fullName" placeholder="Nhập họ và tên" value={formData.fullName} onChange={handleChange} required /></div></div>
           <div className="form-group"><label htmlFor="reg-email">Email công ty</label><div className="input-wrapper"><Mail size={18} /><input id="reg-email" name="email" type="email" placeholder="Nhập email" value={formData.email} onChange={handleChange} required /></div></div>
           <div className="form-row">
-            <div className="form-group"><label htmlFor="reg-password">Mật khẩu</label><div className="input-wrapper"><Lock size={18} /><input id="reg-password" name="password" type="password" placeholder="Tối thiểu 8 ký tự" value={formData.password} onChange={handleChange} required minLength={8} /></div></div>
+            <div className="form-group"><label htmlFor="reg-password">Mật khẩu</label><div className="input-wrapper"><Lock size={18} /><input id="reg-password" name="password" type="password" placeholder="Tối thiểu 6 ký tự" value={formData.password} onChange={handleChange} required minLength={6} /></div></div>
             <div className="form-group"><label htmlFor="confirmPassword">Xác nhận</label><div className="input-wrapper"><Lock size={18} /><input id="confirmPassword" name="confirmPassword" type="password" placeholder="Nhập lại" value={formData.confirmPassword} onChange={handleChange} required /></div></div>
           </div>
           <div className="form-row">

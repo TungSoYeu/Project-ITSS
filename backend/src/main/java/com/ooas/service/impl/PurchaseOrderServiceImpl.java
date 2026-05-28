@@ -54,7 +54,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
 
     @Transactional(readOnly = true)
     public List<PurchaseOrderResponse> list(POStatus status, String siteId, String search) {
-        String normalizedSearch = StringUtils.hasText(search) ? search.trim() : null;
+        String normalizedSearch = StringUtils.hasText(search) ? search.trim() : "";
         String normalizedSiteId = StringUtils.hasText(siteId) ? siteId.trim() : null;
         return purchaseOrderRepository.search(status, normalizedSiteId, normalizedSearch).stream()
                 .map(po -> PurchaseOrderResponse.from(po, false))

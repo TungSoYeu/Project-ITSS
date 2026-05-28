@@ -2,12 +2,15 @@ server:
   port: 3000
 
 spring:
+  docker:
+    compose:
+      enabled: false
   application:
     name: ooas
   datasource:
-    url: jdbc:postgresql://localhost:5432/ooas
-    username: postgres
-    password: tvantung1904
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/postgres}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -18,10 +21,12 @@ spring:
         format_sql: true
   flyway:
     locations: classpath:db/migration
+    clean-disabled: false
+    clean-on-validation-error: true
 
 app:
   jwt:
-    secret: change-this-secret
+    secret: ${JWT_SECRET:change-this-secret}
     expiration: 24h
   cors:
     allowed-origins: http://localhost:5173

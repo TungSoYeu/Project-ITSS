@@ -20,4 +20,6 @@ public interface AuthService {
     Map<String, Object> approveUser(@NonNull String userId);
     Map<String, Object> blockUser(@NonNull String userId);
     Map<String, Object> updateRole(@NonNull String userId, Role role);
+    Map<String, Object> updateProfile(@NonNull String userId, com.ooas.dto.UpdateProfileRequest request);
+    Map<String, Object> changePassword(@NonNull String userId, com.ooas.dto.ChangePasswordRequest request);
 }

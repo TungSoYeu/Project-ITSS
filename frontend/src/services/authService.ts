@@ -13,5 +13,13 @@ export const authService = {
   getProfile: async (): Promise<User> => {
     const res = await axiosInstance.get('/api/auth/profile');
     return res.data;
+  },
+  updateProfile: async (data: { fullName: string; employeeId: string }) => {
+    const res = await axiosInstance.put('/api/auth/profile', data);
+    return res.data;
+  },
+  changePassword: async (data: { oldPassword: string; newPassword: string }) => {
+    const res = await axiosInstance.put('/api/auth/password', data);
+    return res.data;
   }
 };

@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -72,5 +73,15 @@ public class AuthController {
     @PreAuthorize("hasAuthority('ADMIN')")
     public Map<String, Object> updateRole(@PathVariable @org.springframework.lang.NonNull String id, @Valid @RequestBody UpdateRoleRequest request) {
         return authService.updateRole(id, request.role());
+    }
+
+    @PutMapping("/auth/profile")
+    public Map<String, Object> updateProfile(@AuthenticationPrincipal JwtPrincipal principal, @Valid @RequestBody com.ooas.dto.UpdateProfileRequest request) {
+        return authService.updateProfile(java.util.Objects.requireNonNull(principal.id()), request);
+    }
+
+    @PutMapping("/auth/password")
+    public Map<String, Object> changePassword(@AuthenticationPrincipal JwtPrincipal principal, @Valid @RequestBody com.ooas.dto.ChangePasswordRequest request) {
+        return authService.changePassword(java.util.Objects.requireNonNull(principal.id()), request);
     }
 }
