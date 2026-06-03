@@ -32,5 +32,6 @@ dist-ssr/
 # Java / Maven / Gradle
 target/
 build/
+.m2/
 .gradle/
 !gradle/wrapper/gradle-wrapper.jar

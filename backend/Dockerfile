@@ -8,11 +8,11 @@ COPY .mvn .mvn
 COPY mvnw .
 RUN chmod +x mvnw
 # Dependency resolution (caching)
-RUN ./mvnw dependency:go-offline -B
+RUN mvn dependency:go-offline -B
 
 # Copy the source code and build the application
 COPY src src
-RUN ./mvnw package -DskipTests
+RUN mvn package -DskipTests
 
 # Stage 2: Run the application
 FROM eclipse-temurin:21-jre-jammy
