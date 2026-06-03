@@ -2,7 +2,7 @@
 
 OOAS hiện chạy bằng **JavaFX desktop app nối trực tiếp PostgreSQL qua JDBC**.
 
-- **UI:** JavaFX desktop, không phải web.
+- **UI:** JavaFX desktop.
 - **Database:** PostgreSQL.
 - **Data access:** JDBC trực tiếp, không gọi backend REST, không dùng ORM.
 
