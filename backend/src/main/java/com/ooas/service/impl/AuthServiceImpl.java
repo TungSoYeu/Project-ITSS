@@ -89,7 +89,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Transactional(readOnly = true)
     public List<UserResponse> getAllUsers(AccountStatus status, String search) {
-        String normalizedSearch = StringUtils.hasText(search) ? search.trim() : null;
+        String normalizedSearch = StringUtils.hasText(search) ? search.trim() : "";
         return userRepository.search(status, normalizedSearch).stream()
                 .map(UserResponse::from)
                 .toList();

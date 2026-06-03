@@ -20,9 +20,8 @@ spring:
       hibernate:
         format_sql: true
   flyway:
-    locations: classpath:db/migration
-    clean-disabled: false
-    clean-on-validation-error: true
+    enabled: false
+    ignore-missing-migrations: true
 
 app:
   jwt:
