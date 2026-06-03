@@ -78,19 +78,9 @@ Email
 Password
 ```
 
-### Bước 4: Đăng nhập tài khoản seed
+### Bước 4: Đăng nhập hệ thống
 
-Password mặc định của các tài khoản seed:
-
-```text
-123456
-```
-
-Ví dụ tài khoản admin:
-
-```text
-nguyen.hoang.hai@ooas.vn
-```
+Sử dụng tài khoản mà bạn đã thiết lập trong cơ sở dữ liệu để đăng nhập. Hoặc bạn có thể dùng tính năng "Đăng ký tài khoản" trên màn hình đăng nhập.
 
 ---
 
