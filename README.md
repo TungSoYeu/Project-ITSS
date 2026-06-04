@@ -1,125 +1,78 @@
-# Overseas Order Automation System (OOAS)
+# Overseas Order Automation System
 
-OOAS hiện chạy bằng **JavaFX desktop app nối trực tiếp PostgreSQL qua JDBC**.
+OOAS gồm ba thành phần:
 
-- **UI:** JavaFX desktop.
-- **Database:** PostgreSQL.
-- **Data access:** JDBC trực tiếp, không gọi backend REST, không dùng ORM.
+- `backend`: Spring Boot REST API.
+- `frontend`: JavaFX desktop, gồm hệ thống đặt hàng OOAS và hệ thống quản lý kho WMS.
+- `db`: schema và dữ liệu kiểm thử PostgreSQL.
 
-App desktop không dùng Spring/JPA/Jackson/HTTP client. Dependency ngoài tối thiểu còn lại là PostgreSQL JDBC driver để Java kết nối được PostgreSQL và BCrypt verifier để đăng nhập đúng với password seed hiện có.
+## Chạy dự án
 
-`http://localhost:3000` không còn là luồng chạy chính của app desktop. Khi chạy đúng, bạn sẽ thấy cửa sổ `OOAS JavaFX`, không phải trang web trong trình duyệt.
-
----
-
-## 1. Yêu cầu
-
-- Java 21+
-- Docker và Docker Compose
-
----
-
-## 2. Chạy nhanh
-
-### Bước 1: Tạo file `.env`
-
-Tại thư mục gốc dự án:
+Yêu cầu: Java 21+, Docker Desktop.
 
 ```powershell
 Copy-Item .env.example .env
+docker compose up -d postgres
+.\mvnw.cmd "-Dmaven.repo.local=.m2\repository" -pl backend spring-boot:run
 ```
 
-Trên macOS/Linux:
+Mở terminal thứ hai:
 
-```bash
-cp .env.example .env
+```powershell
+.\mvnw.cmd "-Dmaven.repo.local=.m2\repository" -pl frontend javafx:run
 ```
 
-Mặc định database là:
+Tài khoản WMS kiểm thử:
 
 ```text
-Database: ooas
-Database port: 5433 on host, 5432 inside Docker
+Email: warehouse.test@ooas.local
+Mật khẩu: warehouse123
 ```
 
-### Bước 2: Khởi động PostgreSQL
-
-```powershell
-docker-compose up -d
-```
-
-Compose chỉ chạy PostgreSQL. Các file SQL trong `db/migration` được mount vào `/docker-entrypoint-initdb.d` để tạo schema và seed dữ liệu khi volume database được tạo lần đầu.
-
-Nếu trước đó bạn đã có volume cũ và muốn tạo lại database từ đầu:
-
-```powershell
-docker-compose down -v
-docker-compose up -d
-```
-
-### Bước 3: Chạy app desktop JavaFX
-
-Mở terminal mới tại thư mục gốc dự án:
-
-```powershell
-.\mvnw.cmd "-Dmaven.repo.local=.m2\repository" javafx:run
-```
-
-Trên macOS/Linux:
-
-```bash
-./mvnw "-Dmaven.repo.local=.m2/repository" javafx:run
-```
-
-Trên màn hình đăng nhập chỉ cần nhập tài khoản OOAS:
+## Cấu trúc
 
 ```text
-Email
-Password
+backend/
+  src/main/java/com/ooas/
+    config/ controller/ dto/ entity/
+    exception/ repository/ security/ service/
+
+frontend/
+  src/main/java/com/ooas/desktop/
+    application/                 JavaFX entry point
+    shared/
+      api/                       REST API client
+      exception/                 Lỗi dùng chung
+      model/                     Request/response model dùng chung
+    warehouse/
+      application/               Điều phối use case WMS
+      domain/                    Logic kiểm hàng
+      ui/
+        component/               Thành phần JavaFX dùng lại
+        page/                    Các màn hình WMS
+  src/main/resources/com/ooas/desktop/
+    ooas/                        CSS hệ thống đặt hàng
+    warehouse/                   CSS hệ thống kho
+
+db/migration/                    Nguồn schema và seed duy nhất
+docs/                            Tài liệu phân tích
 ```
 
-### Bước 4: Đăng nhập hệ thống
+Xem mô tả chi tiết tại `docs/STRUCTURE.md`.
 
-Sử dụng tài khoản mà bạn đã thiết lập trong cơ sở dữ liệu để đăng nhập. Hoặc bạn có thể dùng tính năng "Đăng ký tài khoản" trên màn hình đăng nhập.
-
----
-
-## 3. Dừng app
-
-Đóng cửa sổ JavaFX, sau đó dừng PostgreSQL:
+## Build kiểm tra
 
 ```powershell
-docker-compose down
+.\mvnw.cmd "-Dmaven.repo.local=.m2\repository" clean package -DskipTests
 ```
 
-Nếu muốn xóa luôn dữ liệu database:
+## Database
+
+PostgreSQL chạy tại `localhost:5432`. Các SQL trong `db/migration` chỉ được chạy tự động khi Docker volume được tạo lần đầu.
+
+Để tạo lại toàn bộ database:
 
 ```powershell
-docker-compose down -v
+docker compose down -v
+docker compose up -d postgres
 ```
-
----
-
-## 4. Cấu trúc dự án
-
-```text
-src/main/java/com/ooas
-  app/          JavaFX entry point và màn hình chính
-  exception/    Lỗi nghiệp vụ/database
-  model/        Enum, request/response record tách theo từng file
-  repository/   JDBC trực tiếp PostgreSQL
-src/main/resources/com/ooas/ui
-  app.css       Giao diện JavaFX
-db/migration    Schema và seed PostgreSQL
-docs/           Tài liệu phân tích môn học
-```
-
-## 5. Build kiểm tra
-
-Build JavaFX client:
-
-```powershell
-.\mvnw.cmd "-Dmaven.repo.local=.m2\repository" -DskipTests package
-```
-
-Luồng chạy chính chỉ cần JavaFX desktop app và PostgreSQL.

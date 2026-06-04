@@ -57,7 +57,7 @@ public class PurchaseOrderServiceImpl implements PurchaseOrderService {
         String normalizedSearch = StringUtils.hasText(search) ? search.trim() : "";
         String normalizedSiteId = StringUtils.hasText(siteId) ? siteId.trim() : null;
         return purchaseOrderRepository.search(status, normalizedSiteId, normalizedSearch).stream()
-                .map(po -> PurchaseOrderResponse.from(po, false))
+                .map(po -> PurchaseOrderResponse.from(po, true))
                 .toList();
     }
 

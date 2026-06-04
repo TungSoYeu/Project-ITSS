@@ -45,6 +45,9 @@ public class WarehouseServiceImpl implements WarehouseService {
         if (po.getStatus() == POStatus.COMPLETED) {
             throw ApiException.badRequest("PO da duoc nhap kho truoc do");
         }
+        if (po.getStatus() != POStatus.SHIPPING && po.getStatus() != POStatus.ARRIVED) {
+            throw ApiException.badRequest("Chi co the kiem hang PO dang van chuyen hoac da den kho");
+        }
 
         Map<String, PurchaseOrderItem> itemsById = po.getItems().stream()
                 .collect(Collectors.toMap(PurchaseOrderItem::getId, Function.identity()));

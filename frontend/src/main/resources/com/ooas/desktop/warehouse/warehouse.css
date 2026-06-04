@@ -1,0 +1,75 @@
+.warehouse-shell {
+    -fx-background-color: #f4f8fc;
+}
+
+.warehouse-sidebar {
+    -fx-background-color: #0b2f5b;
+    -fx-padding: 24px 16px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.16), 12, 0, 2, 0);
+}
+
+.warehouse-brand {
+    -fx-text-fill: white;
+    -fx-font-size: 30px;
+    -fx-font-weight: 800;
+    -fx-padding: 0 0 0 8px;
+}
+
+.warehouse-subtitle {
+    -fx-text-fill: #bfdbfe;
+    -fx-padding: 0 0 12px 8px;
+}
+
+.warehouse-sidebar-user {
+    -fx-text-fill: #dbeafe;
+    -fx-font-weight: 600;
+    -fx-line-spacing: 5px;
+    -fx-padding: 0 0 18px 8px;
+}
+
+.warehouse-nav-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #dbeafe;
+    -fx-alignment: center-left;
+    -fx-padding: 13px 16px;
+    -fx-background-radius: 8px;
+    -fx-font-weight: 700;
+    -fx-cursor: hand;
+}
+
+.warehouse-nav-button:hover {
+    -fx-background-color: #164e88;
+    -fx-text-fill: white;
+}
+
+.warehouse-content,
+.warehouse-page,
+.warehouse-page-scroll,
+.warehouse-page-scroll > .viewport {
+    -fx-background-color: #f4f8fc;
+}
+
+.warehouse-page-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #102a43;
+}
+
+.warehouse-toolbar {
+    -fx-padding: 8px 0 14px 0;
+}
+
+.warehouse-section {
+    -fx-background-color: white;
+    -fx-padding: 22px;
+    -fx-background-radius: 12px;
+    -fx-border-color: #d7e3f1;
+    -fx-border-radius: 12px;
+    -fx-effect: dropshadow(three-pass-box, rgba(15,47,91,0.06), 12, 0, 0, 3);
+}
+
+.warehouse-section-title {
+    -fx-font-size: 17px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #163a63;
+}

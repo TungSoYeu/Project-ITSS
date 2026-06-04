@@ -19,10 +19,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
-  flyway:
-    enabled: false
-    ignore-missing-migrations: true
-
 app:
   jwt:
     secret: ${JWT_SECRET:change-this-secret}
