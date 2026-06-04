@@ -1,0 +1,47 @@
+.inspection-card {
+    -fx-background-color: white;
+    -fx-padding: 18px;
+    -fx-background-radius: 9px;
+    -fx-border-color: #d7e3f1;
+    -fx-border-radius: 9px;
+    -fx-max-width: Infinity;
+}
+
+.inspection-card .text-field,
+.inspection-card .combo-box,
+.inspection-card .date-picker {
+    -fx-pref-width: 210px;
+}
+
+.inspection-item-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #163a63;
+}
+
+.inspection-card-mismatch {
+    -fx-background-color: #fff8ed;
+    -fx-border-color: #f59e0b;
+}
+
+.difference-pending {
+    -fx-text-fill: #64748b;
+    -fx-font-weight: 700;
+}
+
+.difference-ok,
+.inspection-result-success {
+    -fx-text-fill: #15803d;
+    -fx-font-weight: 800;
+}
+
+.difference-warning,
+.inspection-result-warning {
+    -fx-text-fill: #c2410c;
+    -fx-font-weight: 800;
+}
+
+.inspection-result-pending {
+    -fx-text-fill: #486581;
+    -fx-font-weight: 700;
+}

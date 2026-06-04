@@ -1,0 +1,59 @@
+.warehouse-primary-button {
+    -fx-background-color: #1565c0;
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+    -fx-background-radius: 8px;
+    -fx-padding: 10px 18px;
+}
+
+.warehouse-primary-button:hover {
+    -fx-background-color: #0d47a1;
+}
+
+.warehouse-secondary-button {
+    -fx-background-color: white;
+    -fx-border-color: #90aeca;
+    -fx-text-fill: #163a63;
+    -fx-font-weight: 700;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-padding: 10px 18px;
+}
+
+.warehouse-action-menu {
+    -fx-background-color: #e8f1fb;
+    -fx-text-fill: #123b66;
+    -fx-font-weight: 700;
+    -fx-background-radius: 7px;
+}
+
+.warehouse-shell .table-view .column-header .label {
+    -fx-wrap-text: true;
+    -fx-alignment: center;
+}
+
+.warehouse-shell .table-row-cell {
+    -fx-cell-size: 48px;
+}
+
+.warehouse-item-table .table-row-cell {
+    -fx-cell-size: 76px;
+}
+
+.warehouse-item-table .table-cell {
+    -fx-alignment: center-left;
+    -fx-padding: 8px;
+}
+
+.warehouse-field .label,
+.warehouse-info-key {
+    -fx-text-fill: #486581;
+    -fx-font-weight: 700;
+}
+
+.warehouse-status-bar {
+    -fx-background-color: white;
+    -fx-border-color: #d7e3f1 transparent transparent transparent;
+    -fx-padding: 10px 16px;
+    -fx-text-fill: #486581;
+}
