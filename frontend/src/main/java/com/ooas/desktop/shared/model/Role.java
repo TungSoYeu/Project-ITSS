@@ -5,6 +5,6 @@ public enum Role {
     SALES,
     OVERSEAS_ORDER,
     WAREHOUSE,
-    SUPPLIER
+    SITE
 }
 

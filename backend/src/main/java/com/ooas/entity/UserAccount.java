@@ -36,6 +36,9 @@ public class UserAccount extends BaseEntity {
     @Column(nullable = false, length = 32)
     private AccountStatus status = AccountStatus.PENDING;
 
+    @Column(name = "site_id")
+    private String siteId;
+
     public UserAccount(String email, String password, String fullName, String employeeId, Role role, AccountStatus status) {
         this.email = email;
         this.password = password;

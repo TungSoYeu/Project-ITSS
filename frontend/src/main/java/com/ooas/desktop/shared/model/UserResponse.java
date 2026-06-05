@@ -9,6 +9,8 @@ public record UserResponse(
         String employeeId,
         Role role,
         AccountStatus status,
+        String siteId,
+        String siteName,
         Instant createdAt
 ) {
 }

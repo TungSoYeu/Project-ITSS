@@ -5,7 +5,6 @@ import com.ooas.desktop.warehouse.ui.component.WarehouseUi;
 import com.ooas.desktop.shared.model.UserResponse;
 import com.ooas.desktop.shared.api.DatabaseClient;
 import javafx.scene.Parent;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.layout.BorderPane;
