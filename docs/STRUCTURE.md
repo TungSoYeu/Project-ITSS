@@ -1,41 +1,35 @@
 # Project Structure
 
-## Module boundaries
+## Runtime boundary
 
-### Backend
+Luồng chạy chính của OOAS là JavaFX desktop app kết nối trực tiếp PostgreSQL qua JDBC. Không có backend REST, HTTP client, Spring Data JPA hay ORM trong luồng desktop.
 
-`backend` là Spring Boot REST API và dùng cấu trúc phân tầng:
+## Desktop App
 
-- `controller`: HTTP endpoints.
-- `service`: hợp đồng nghiệp vụ.
-- `service.impl`: hiện thực nghiệp vụ.
-- `repository`: truy cập PostgreSQL qua Spring Data JPA.
-- `entity`: mô hình persistence.
-- `dto`: request/response của API.
-- `security`, `config`, `exception`: hạ tầng dùng chung.
+Source chạy chính nằm trong `frontend/src/main/java/com/ooas/desktop`:
 
-### Frontend
+- `application`: JavaFX entry point và điều hướng hệ thống chính.
+- `shared.api`: `DatabaseClient`, JDBC client gọi PostgreSQL bằng SQL trực tiếp.
+- `shared.exception`: lỗi nghiệp vụ/database dùng chung.
+- `shared.model`: enum và request/response record.
+- `warehouse.application`: điều phối use case kiểm hàng.
+- `warehouse.domain`: quy tắc đối chiếu và sai lệch.
+- `warehouse.ui.page`: từng màn hình WMS.
+- `warehouse.ui.component`: thành phần giao diện dùng lại.
 
-`frontend` là JavaFX desktop client:
+Resource giao diện nằm trong `frontend/src/main/resources/com/ooas/desktop`.
 
-- `desktop.application`: entry point và điều hướng hệ thống chính.
-- `desktop.shared`: API client, model và exception dùng chung.
-- `desktop.warehouse.application`: điều phối use case kiểm hàng.
-- `desktop.warehouse.domain`: quy tắc đối chiếu và sai lệch.
-- `desktop.warehouse.ui.page`: từng màn hình WMS.
-- `desktop.warehouse.ui.component`: thành phần giao diện dùng lại.
+## Database
 
-### Database
+`db/migration` là nguồn SQL duy nhất. Docker Compose mount thư mục này vào PostgreSQL tại `/docker-entrypoint-initdb.d` để khởi tạo schema và seed dữ liệu khi volume database được tạo lần đầu.
 
-`db/migration` là nguồn SQL duy nhất. Docker mount thư mục này vào PostgreSQL để khởi tạo schema và dữ liệu test.
-
-## Dependency direction
+## Dependency Direction
 
 ```text
+application  -> shared.api + shared.model
 warehouse.ui -> warehouse.application -> shared.api
 warehouse.ui -> warehouse.domain
-application  -> shared.api + shared.model
-backend controller -> service -> repository/entity
+shared.api   -> PostgreSQL JDBC
 ```
 
-UI không truy cập database trực tiếp. JavaFX gọi backend qua `DatabaseClient`; backend chịu trách nhiệm nghiệp vụ và persistence.
+Thư mục `backend` chỉ còn là mã cũ tham khảo và không nằm trong Maven/build/chạy chính của app desktop.

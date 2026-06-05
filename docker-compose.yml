@@ -13,22 +13,5 @@ services:
       - ooas-postgres-data:/var/lib/postgresql/data
       - ./db/migration:/docker-entrypoint-initdb.d:ro
 
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: ooas-backend
-    restart: always
-    environment:
-      - DB_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-ooas}
-      - DB_USERNAME=${POSTGRES_USER:-postgres}
-      - DB_PASSWORD=${POSTGRES_PASSWORD:-admin}
-      - JWT_SECRET=${JWT_SECRET:-change-this-secret}
-      - JWT_EXPIRATION=${JWT_EXPIRATION:-24h}
-    ports:
-      - "3000:3000"
-    depends_on:
-      - postgres
-
 volumes:
   ooas-postgres-data:

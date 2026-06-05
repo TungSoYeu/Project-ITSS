@@ -24,7 +24,7 @@ public final class WarehouseOrderDetailPage {
     public void show() {
         VBox page = WarehouseUi.page("Chi tiết đơn hàng " + order.code());
         Button back = WarehouseUi.secondaryButton("Quay lại danh sách");
-        Button inspect = WarehouseUi.primaryButton("Kiểm hàng");
+        Button inspect = WarehouseUi.primaryButton("Xác nhận nhập kho");
         back.setOnAction(event -> coordinator.showOrderList());
         inspect.setDisable(!coordinator.canInspect(order));
         inspect.setOnAction(event -> coordinator.openInspection(order));
@@ -34,7 +34,7 @@ public final class WarehouseOrderDetailPage {
         page.getChildren().addAll(
                 WarehouseUi.toolbar(back, inspect),
                 WarehouseUi.section("Thông tin đơn hàng", WarehouseOrderInfo.detail(order)),
-                WarehouseUi.section("Danh sách mặt hàng", items));
+                WarehouseUi.section("Mặt hàng giao tới", items));
         coordinator.show(page, true);
     }
 }

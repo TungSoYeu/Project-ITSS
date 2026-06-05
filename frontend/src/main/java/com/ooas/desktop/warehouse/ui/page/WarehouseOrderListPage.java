@@ -25,14 +25,14 @@ public final class WarehouseOrderListPage {
     private final TableView<PurchaseOrderResponse> table = new TableView<>();
     private final TextField search = new TextField();
     private final ComboBox<String> status = new ComboBox<>(FXCollections.observableArrayList(
-            "Tất cả trạng thái", "Chưa kiểm hàng", "Đã hoàn tất kiểm hàng"));
+            "Tất cả trạng thái", "Chờ xác nhận nhập kho", "Có chênh lệch/Cần xử lý", "Hoàn thành"));
 
     public WarehouseOrderListPage(WarehouseCoordinator coordinator) {
         this.coordinator = coordinator;
     }
 
     public void show() {
-        VBox page = WarehouseUi.page("Danh sách đơn hàng");
+        VBox page = WarehouseUi.page("Xác nhận đơn hàng nhập kho");
         configureFilters();
         configureTable();
         page.getChildren().addAll(WarehouseUi.toolbar(search, status), table);
@@ -59,11 +59,11 @@ public final class WarehouseOrderListPage {
         table.getColumns().setAll(List.of(
                 WarehouseTables.indexColumn(),
                 WarehouseTables.column("Mã đơn hàng", 145, PurchaseOrderResponse::code),
-                WarehouseTables.column("Site", 190, row -> row.siteCode() + " - " + row.siteName()),
-                WarehouseTables.column("Ngày dự kiến", 125, PurchaseOrderResponse::expectedArrivalDate),
-                WarehouseTables.column("Số mặt hàng", 110, PurchaseOrderResponse::itemCount),
-                WarehouseTables.column("Trạng thái kiểm hàng", 180, WarehouseOrderFormat::inspectionStatus),
-                WarehouseTables.column("Kết quả sai lệch", 180, WarehouseOrderFormat::discrepancySummary),
+                WarehouseTables.column("Site giao tới", 210, row -> row.siteCode() + " - " + row.siteName()),
+                WarehouseTables.column("Ngày đến dự kiến", 140, PurchaseOrderResponse::expectedArrivalDate),
+                WarehouseTables.column("Ngày đến thực tế", 140, PurchaseOrderResponse::actualArrivalDate),
+                WarehouseTables.column("Trạng thái xác nhận", 190, WarehouseOrderFormat::inspectionStatus),
+                WarehouseTables.column("Kết quả kiểm nhận", 190, WarehouseOrderFormat::confirmationResult),
                 actionColumn()));
         table.setOnMouseClicked(event -> {
             PurchaseOrderResponse selected = table.getSelectionModel().getSelectedItem();

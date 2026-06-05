@@ -8,24 +8,30 @@ public final class WarehouseOrderFormat {
     }
 
     public static String inspectionStatus(PurchaseOrderResponse order) {
-        return order.status() == POStatus.COMPLETED ? "Đã hoàn tất kiểm hàng" : "Chưa kiểm hàng";
+        return switch (order.status()) {
+            case COMPLETED -> "Hoàn thành";
+            case NEEDS_ACTION -> "Có chênh lệch/Cần xử lý";
+            default -> "Chờ xác nhận nhập kho";
+        };
     }
 
-    public static String discrepancySummary(PurchaseOrderResponse order) {
-        if (order.items() == null || order.items().isEmpty() || order.status() != POStatus.COMPLETED) {
-            return "Chưa đối chiếu";
+    public static String confirmationResult(PurchaseOrderResponse order) {
+        if (order.items() == null || order.items().isEmpty()
+                || (order.status() != POStatus.COMPLETED && order.status() != POStatus.NEEDS_ACTION)) {
+            return "Chưa xác nhận";
         }
         int missing = order.items().stream().mapToInt(item -> Math.max(0, -item.difference())).sum();
         int excess = order.items().stream().mapToInt(item -> Math.max(0, item.difference())).sum();
         long quality = order.items().stream().filter(item -> hasQualityIssue(item.notes())).count();
         return missing == 0 && excess == 0 && quality == 0
-                ? "Khớp hoàn toàn"
-                : "Thiếu " + missing + " · Thừa " + excess + " · Lỗi CL/bao bì " + quality;
+                ? "Khớp thông tin"
+                : "Thiếu " + missing + " · Thừa " + excess + " · CL/bao bì " + quality;
     }
 
     public static boolean visibleInWarehouse(PurchaseOrderResponse order) {
         return order.status() == POStatus.SHIPPING
                 || order.status() == POStatus.ARRIVED
+                || order.status() == POStatus.NEEDS_ACTION
                 || order.status() == POStatus.COMPLETED;
     }
 

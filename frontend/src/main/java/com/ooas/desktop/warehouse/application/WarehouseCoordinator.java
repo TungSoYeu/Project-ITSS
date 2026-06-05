@@ -40,18 +40,18 @@ public final class WarehouseCoordinator {
 
     public void openInspection(PurchaseOrderResponse order) {
         if (!canInspect(order)) {
-            alert(Alert.AlertType.WARNING, "Không thể kiểm hàng",
-                    "Chỉ kiểm hàng đơn đang vận chuyển hoặc đã đến kho.");
+            alert(Alert.AlertType.WARNING, "Không thể xác nhận nhập kho",
+                    "Chỉ xác nhận nhập kho cho đơn đang vận chuyển hoặc đã đến kho.");
             return;
         }
-        call("Đang tải dữ liệu kiểm hàng...", database.purchaseOrderDetail(order.id()),
+        call("Đang tải dữ liệu xác nhận nhập kho...", database.purchaseOrderDetail(order.id()),
                 value -> new WarehouseInspectionPage(this, value).show());
     }
 
     public void receive(PurchaseOrderResponse order, ReceivePurchaseOrderRequest request) {
-        call("Đang xác nhận kết quả kiểm hàng...", database.receivePurchaseOrder(order.id(), request), saved -> {
+        call("Đang lưu kết quả xác nhận nhập kho...", database.receivePurchaseOrder(order.id(), request), saved -> {
             alert(Alert.AlertType.INFORMATION, "Xác nhận thành công",
-                    "Đã hoàn tất kiểm hàng đơn " + saved.code() + ".");
+                    "Đã lưu kết quả xác nhận nhập kho cho đơn " + saved.code() + ".");
             showOrderList();
         });
     }

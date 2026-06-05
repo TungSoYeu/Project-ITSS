@@ -85,7 +85,7 @@ public class OoasDesktopApplication extends Application {
 
     @Override
     public void start(Stage stage) {
-        database = new DatabaseClient(defaultApiUrl());
+        database = new DatabaseClient(defaultJdbcUrl());
         scene = new Scene(new StackPane(), 1360, 820);
         String stylesheet = getClass().getResource("/com/ooas/desktop/ooas/app.css").toExternalForm();
         scene.getStylesheets().add(stylesheet);
@@ -118,9 +118,9 @@ public class OoasDesktopApplication extends Application {
         }
     }
 
-    private String defaultApiUrl() {
-        String fromEnv = System.getenv("OOAS_API_URL");
-        return fromEnv == null || fromEnv.isBlank() ? "http://localhost:3000/api" : fromEnv;
+    private String defaultJdbcUrl() {
+        String fromEnv = System.getenv("DB_URL");
+        return fromEnv == null || fromEnv.isBlank() ? "jdbc:postgresql://localhost:5432/ooas" : fromEnv;
     }
 
     private void showLogin() {

@@ -10,7 +10,7 @@ import javafx.scene.control.TableCell;
 public final class WarehouseOrderActionCell extends TableCell<PurchaseOrderResponse, Void> {
     private final WarehouseCoordinator coordinator;
     private final MenuItem detail = new MenuItem("Xem chi tiết");
-    private final MenuItem inspect = new MenuItem("Kiểm hàng");
+    private final MenuItem inspect = new MenuItem("Xác nhận nhập kho");
     private final MenuButton menu = new MenuButton("Thao tác", null, detail, inspect);
 
     public WarehouseOrderActionCell(WarehouseCoordinator coordinator) {
