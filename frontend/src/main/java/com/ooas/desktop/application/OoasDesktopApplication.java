@@ -8,7 +8,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,7 +21,6 @@ import java.util.function.Function;
 import java.util.prefs.Preferences;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -48,7 +46,6 @@ import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
-import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
@@ -80,6 +77,9 @@ public class OoasDesktopApplication extends Application {
     private String currentToken;
 
     public static void main(String[] args) {
+        if ("Asia/Saigon".equals(java.util.TimeZone.getDefault().getID())) {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
+        }
         launch(args);
     }
 
@@ -256,19 +256,41 @@ public class OoasDesktopApplication extends Application {
         Label user = new Label(currentUser == null ? "" : currentUser.fullName() + "\n" + currentUser.role());
         user.getStyleClass().add("sidebar-user");
 
-        nav.getChildren().addAll(
-                brand,
-                user,
-                new Separator(),
-                navButton("Tổng quan", this::showDashboard),
-                navButton("Yêu cầu đặt hàng", this::showOrderRequests),
-                navButton("Đơn đặt hàng (PO)", this::showPurchaseOrders),
-                navButton("Cơ sở & Tồn kho", this::showSites),
-                navButton("Theo dõi vận chuyển", this::showShipments),
-                navButton("Hồ sơ cá nhân", this::showProfile),
-                spacer(),
-                navButton("Đăng xuất", this::logout)
-        );
+        List<Node> navItems = new java.util.ArrayList<>();
+        navItems.add(brand);
+        navItems.add(user);
+        navItems.add(new Separator());
+        navItems.add(navButton("Tổng quan", this::showDashboard));
+        
+        if (currentUser != null) {
+            switch (currentUser.role()) {
+                case ADMIN -> {
+                    navItems.add(navButton("Quản lý tài khoản", this::showUsers));
+                    navItems.add(navButton("Cơ sở & Tồn kho", this::showSites));
+                }
+                case SALES -> {
+                    navItems.add(navButton("Yêu cầu đặt hàng", this::showOrderRequests));
+                    navItems.add(navButton("Cơ sở & Tồn kho", this::showSites));
+                }
+                case OVERSEAS_ORDER -> {
+                    navItems.add(navButton("Yêu cầu đặt hàng", this::showOrderRequests));
+                    navItems.add(navButton("Đơn đặt hàng (PO)", this::showPurchaseOrders));
+                    navItems.add(navButton("Theo dõi vận chuyển", this::showShipments));
+                }
+                case SITE -> {
+                    navItems.add(navButton("Yêu cầu đặt hàng", this::showOrderRequests));
+                    navItems.add(navButton("Đơn đặt hàng (PO)", this::showPurchaseOrders));
+                    navItems.add(navButton("Tồn kho của tôi", this::showMyInventory));
+                }
+                default -> {}
+            }
+        }
+        
+        navItems.add(navButton("Hồ sơ cá nhân", this::showProfile));
+        navItems.add(spacer());
+        navItems.add(navButton("Đăng xuất", this::logout));
+        
+        nav.getChildren().addAll(navItems);
 
         statusLabel = new Label("Sẵn sàng");
         statusLabel.getStyleClass().add("status-bar");
@@ -326,11 +348,11 @@ public class OoasDesktopApplication extends Application {
         search.setPromptText("Tìm theo mã hoặc người tạo");
         Button refresh = secondaryButton("Làm mới");
         Button create = primaryButton("Tạo yêu cầu mới");
+        Button edit = secondaryButton("Sửa");
         Button detail = secondaryButton("Chi tiết");
-        Button submit = secondaryButton("Gửi đi");
         Button cancel = secondaryButton("Hủy");
-        Button inventory = secondaryButton("Kiểm tra tồn kho");
-        Button optimize = secondaryButton("Tối ưu hóa");
+        Button sendInquiry = secondaryButton("Gửi yêu cầu tới Site");
+        Button replyInquiry = primaryButton("Kiểm tra & Phản hồi");
         Button generatePo = secondaryButton("Tạo PO");
 
         TableView<OrderRequestResponse> table = new TableView<>();
@@ -350,22 +372,166 @@ public class OoasDesktopApplication extends Application {
         refresh.setOnAction(event -> load.run());
         search.setOnAction(event -> load.run());
         create.setOnAction(event -> openOrderDialog(null, load));
-        detail.setOnAction(event -> withSelected(table, row -> call("Đang tải chi tiết yêu cầu...", database.orderRequestDetail(row.id()), this::showOrderRequestDetail)));
-        submit.setOnAction(event -> withSelected(table, row -> call("Đang gửi yêu cầu...", database.submitOrderRequest(row.id()), updated -> load.run())));
+        detail.setOnAction(event -> withSelected(table, row -> call("Đang tải chi tiết yêu cầu...", 
+            database.orderRequestDetail(row.id()).thenCombineAsync(database.getSiteInquiries(row.id(), null), (req, inq) -> {
+                String sentTo = inq.isEmpty() ? null : inq.stream().map(com.ooas.desktop.shared.model.SiteInquiryResponse::siteName).collect(java.util.stream.Collectors.joining(", "));
+                return new Object[]{req, sentTo};
+            }), 
+            result -> showOrderRequestDetail((OrderRequestResponse) result[0], (String) result[1])
+        )));
+        edit.setOnAction(event -> withSelected(table, row -> {
+            if (row.status() != RequestStatus.PENDING) {
+                alert(Alert.AlertType.WARNING, "Không thể sửa", "Chỉ có thể sửa yêu cầu ở trạng thái PENDING.");
+                return;
+            }
+            openOrderDialog(row, load);
+        }));
         cancel.setOnAction(event -> withReason("Hủy yêu cầu", reason -> withSelected(table, row -> call("Đang hủy yêu cầu...", database.cancelOrderRequest(row.id(), reason), updated -> load.run()))));
-        inventory.setOnAction(event -> withSelected(table, row -> call("Đang kiểm tra tồn kho...", database.inventoryCheck(row.id()), result -> showJsonDialog("Kiểm tra tồn kho", result))));
-        optimize.setOnAction(event -> withSelected(table, row -> call("Đang tối ưu hóa yêu cầu...", database.optimize(row.id()), result -> showJsonDialog("Optimization", result))));
-        generatePo.setOnAction(event -> withSelected(table, row -> call("Đang tạo PO...", database.generatePurchaseOrders(row.id()), result -> {
-            showJsonDialog("PO đã tạo", result);
-            load.run();
-        })));
+        sendInquiry.setOnAction(event -> withSelected(table, row -> showSendInquiryDialog(row, load)));
+        replyInquiry.setOnAction(event -> withSelected(table, row -> replySiteInquiry(row.id(), load)));
+        generatePo.setOnAction(event -> withSelected(table, row -> showGeneratePoDialog(row, load)));
+
+        List<Node> tbNodes = new java.util.ArrayList<>();
+        tbNodes.add(statusFilter);
+        tbNodes.add(search);
+        tbNodes.add(refresh);
+        if (currentUser.role() == Role.SALES) {
+            tbNodes.add(create);
+            tbNodes.add(edit);
+            tbNodes.add(detail);
+            tbNodes.add(cancel);
+        } else if (currentUser.role() == Role.OVERSEAS_ORDER) {
+            tbNodes.add(detail);
+            tbNodes.add(sendInquiry);
+            tbNodes.add(generatePo);
+            tbNodes.add(cancel);
+        } else if (currentUser.role() == Role.SITE) {
+            tbNodes.add(detail);
+            tbNodes.add(replyInquiry);
+        }
 
         page.getChildren().addAll(
-                toolbar(statusFilter, search, refresh, create, detail, submit, cancel, inventory, optimize, generatePo),
+                toolbar(tbNodes.toArray(new Node[0])),
                 table
         );
         setPage(page);
         load.run();
+    }
+
+    private void replySiteInquiry(String requestId, Runnable onComplete) {
+        call("Đang tải yêu cầu...", database.getSiteInquiries(requestId, currentUser.siteId()), inquiries -> {
+            if (inquiries.isEmpty()) {
+                alert(Alert.AlertType.WARNING, "Lỗi", "Không tìm thấy yêu cầu hỏi hàng nào cho Site của bạn.");
+                return;
+            }
+            SiteInquiryResponse inquiry = inquiries.get(0);
+            if (!"PENDING".equals(inquiry.status())) {
+                alert(Alert.AlertType.WARNING, "Lỗi", "Yêu cầu này đã được phản hồi (Trạng thái: " + inquiry.status() + ").");
+                return;
+            }
+
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Phản hồi yêu cầu");
+            confirm.setHeaderText("Xác nhận khả năng cung cấp");
+            confirm.setContentText("Bạn có đồng ý cung cấp cho yêu cầu này không?");
+
+            ButtonType acceptBtn = new ButtonType("Đồng ý", ButtonBar.ButtonData.YES);
+            ButtonType rejectBtn = new ButtonType("Từ chối", ButtonBar.ButtonData.NO);
+            ButtonType cancelBtn = new ButtonType("Hủy", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+            confirm.getButtonTypes().setAll(acceptBtn, rejectBtn, cancelBtn);
+
+            confirm.showAndWait().ifPresent(type -> {
+                if (type == acceptBtn) {
+                    call("Đang xử lý phản hồi...", database.replyInquiry(inquiry.id(), true), ignored -> {
+                        alert(Alert.AlertType.INFORMATION, "Thành công", "Đã ĐỒNG Ý phản hồi kiểm tra tồn kho cho OVS.");
+                        onComplete.run();
+                    });
+                } else if (type == rejectBtn) {
+                    call("Đang xử lý phản hồi...", database.replyInquiry(inquiry.id(), false), ignored -> {
+                        alert(Alert.AlertType.INFORMATION, "Thành công", "Đã TỪ CHỐI phản hồi kiểm tra tồn kho cho OVS.");
+                        onComplete.run();
+                    });
+                }
+            });
+        });
+    }
+
+    private void showSendInquiryDialog(OrderRequestResponse request, Runnable onComplete) {
+        Dialog<List<AllocationRequest>> dialog = new Dialog<>();
+        dialog.setTitle("Xác định kho cho yêu cầu " + request.code());
+        dialog.getDialogPane().getButtonTypes().addAll(new ButtonType("Gửi", ButtonBar.ButtonData.OK_DONE), ButtonType.CANCEL);
+
+        TableView<AllocationRequest> allocTable = new TableView<>();
+        allocTable.getColumns().setAll(List.of(
+                column("Mã SKU", 100, AllocationRequest::skuId),
+                column("Site ID", 100, AllocationRequest::siteId),
+                column("Phương tiện", 100, AllocationRequest::transportMethod),
+                column("Số lượng", 100, AllocationRequest::quantity),
+                column("Ngày nhận", 100, AllocationRequest::expectedArrivalDate)
+        ));
+        allocTable.setPrefHeight(200);
+
+        Button btnOptimize = secondaryButton("Tối ưu hóa kho");
+        btnOptimize.setOnAction(e -> call("Đang tính toán...", database.optimize(request.id()), opt -> {
+            if (!opt.warnings().isEmpty()) {
+                alert(Alert.AlertType.WARNING, "Cảnh báo", String.join("\n", opt.warnings()));
+            }
+            allocTable.getItems().setAll(opt.allocations().stream().map(a -> new AllocationRequest(a.skuId(), a.siteId(), a.transportMethod(), a.quantity(), a.expectedArrivalDate())).toList());
+        }));
+
+        javafx.scene.layout.VBox box = new javafx.scene.layout.VBox(10, btnOptimize, allocTable);
+        dialog.getDialogPane().setContent(box);
+
+        dialog.setResultConverter(type -> type.getButtonData() == ButtonBar.ButtonData.OK_DONE ? new java.util.ArrayList<>(allocTable.getItems()) : null);
+        dialog.showAndWait().ifPresent(allocs -> {
+            if (allocs.isEmpty()) {
+                alert(Alert.AlertType.WARNING, "Lỗi", "Chưa có dữ liệu phân bổ. Vui lòng Tối ưu hóa trước.");
+                return;
+            }
+            call("Đang gửi yêu cầu...", database.sendInquiries(request.id(), allocs), result -> {
+                alert(Alert.AlertType.INFORMATION, "Thành công", "Đã gửi yêu cầu hỏi hàng tới các Site.");
+                onComplete.run();
+            });
+        });
+    }
+
+    private void showGeneratePoDialog(OrderRequestResponse request, Runnable onComplete) {
+        Dialog<List<AllocationRequest>> dialog = new Dialog<>();
+        dialog.setTitle("Tạo PO cho " + request.code());
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType(), ButtonType.CANCEL);
+
+        TableView<AllocationRequest> allocTable = new TableView<>();
+        allocTable.getColumns().setAll(List.of(
+                column("Mã SKU", 100, AllocationRequest::skuId),
+                column("Site ID", 100, AllocationRequest::siteId),
+                column("Phương tiện", 100, AllocationRequest::transportMethod),
+                column("Số lượng", 100, AllocationRequest::quantity),
+                column("Ngày nhận", 100, AllocationRequest::expectedArrivalDate)
+        ));
+        allocTable.setPrefHeight(200);
+
+        call("Đang tải dữ liệu từ Site...", database.getAllocationsFromInquiries(request.id()), allocs -> {
+            if (allocs.isEmpty()) {
+                alert(Alert.AlertType.WARNING, "Cảnh báo", "Không có nguồn cung cấp nào từ các site (chưa phản hồi hoặc không có hàng).");
+            }
+            allocTable.getItems().setAll(allocs);
+        });
+
+        javafx.scene.layout.VBox box = new javafx.scene.layout.VBox(10, allocTable);
+        dialog.getDialogPane().setContent(box);
+
+        dialog.setResultConverter(type -> type == saveButtonType() ? new java.util.ArrayList<>(allocTable.getItems()) : null);
+        dialog.showAndWait().ifPresent(allocs -> {
+            if (allocs.isEmpty()) {
+                alert(Alert.AlertType.WARNING, "Lỗi", "Không có dữ liệu để tạo PO.");
+                return;
+            }
+            call("Đang tạo PO...", database.generatePurchaseOrders(request.id(), allocs), result -> {
+                alert(Alert.AlertType.INFORMATION, "Thành công", "Đã tạo " + result.size() + " POs.");
+                onComplete.run();
+            });
+        });
     }
 
     private void openOrderDialog(OrderRequestResponse existing, Runnable afterSave) {
@@ -385,7 +551,7 @@ public class OoasDesktopApplication extends Application {
         dialog.setTitle(existing == null ? "Yêu cầu đặt hàng mới" : "Chỉnh sửa yêu cầu");
         dialog.getDialogPane().getButtonTypes().addAll(saveButtonType(), ButtonType.CANCEL);
 
-        DatePicker expectedDate = new DatePicker(existing == null ? LocalDate.now().plusDays(7) : existing.expectedDate());
+        DatePicker orderDate = new DatePicker(existing == null ? LocalDate.now() : existing.expectedDate());
         TextArea notes = new TextArea(existing == null ? "" : safe(existing.notes()));
         notes.setPrefRowCount(3);
 
@@ -394,30 +560,27 @@ public class OoasDesktopApplication extends Application {
             existing.items().forEach(item -> skus.stream()
                     .filter(sku -> sku.id().equals(item.skuId()))
                     .findFirst()
-                    .ifPresent(sku -> rows.add(new OrderLineDraft(sku, item.quantity(), item.expectedDate()))));
+                    .ifPresent(sku -> rows.add(new OrderLineDraft(sku, item.quantity()))));
         }
 
         ComboBox<SkuResponse> sku = skuCombo(skus);
         Spinner<Integer> quantity = integerSpinner(1, 1, 1_000_000);
-        DatePicker lineDate = new DatePicker();
         Button addLine = secondaryButton("Thêm SP");
         addLine.setOnAction(event -> {
             if (sku.getValue() == null) {
                 alert(Alert.AlertType.WARNING, "Chưa chọn SKU", "Vui lòng chọn một SKU.");
                 return;
             }
-            rows.add(new OrderLineDraft(sku.getValue(), quantity.getValue(), lineDate.getValue()));
+            rows.add(new OrderLineDraft(sku.getValue(), quantity.getValue()));
             sku.setValue(null);
             quantity.getValueFactory().setValue(1);
-            lineDate.setValue(null);
         });
 
         TableView<OrderLineDraft> table = new TableView<>(rows);
         table.setPrefHeight(180);
         table.getColumns().setAll(List.of(
                 column("SKU", 220, row -> row.sku().code() + " - " + row.sku().name()),
-                column("SL", 100, OrderLineDraft::quantity),
-                column("Ngày dòng SP", 110, OrderLineDraft::expectedDate)
+                column("SL", 100, OrderLineDraft::quantity)
         ));
         Button removeLine = secondaryButton("Xóa SP");
         removeLine.setOnAction(event -> {
@@ -428,22 +591,22 @@ public class OoasDesktopApplication extends Application {
         });
 
         GridPane form = formGrid();
-        form.addRow(0, new Label("Ngày dự kiến"), expectedDate);
+        form.addRow(0, new Label("Ngày đặt"), orderDate);
         form.addRow(1, new Label("Ghi chú"), notes);
 
         VBox box = new VBox(12,
                 form,
                 new Separator(),
                 new Label("Số lượng SP"),
-                toolbar(sku, quantity, lineDate, addLine, removeLine),
+                toolbar(sku, quantity, addLine, removeLine),
                 table
         );
         box.setPrefWidth(720);
 
         Node save = dialog.getDialogPane().lookupButton(saveButtonType());
         save.addEventFilter(ActionEvent.ACTION, event -> {
-            if (expectedDate.getValue() == null || rows.isEmpty()) {
-                alert(Alert.AlertType.WARNING, "Thiếu dữ liệu", "Vui lòng nhập ngày dự kiến và ít nhất một sản phẩm.");
+            if (orderDate.getValue() == null || rows.isEmpty()) {
+                alert(Alert.AlertType.WARNING, "Thiếu dữ liệu", "Vui lòng nhập ngày đặt và ít nhất một sản phẩm.");
                 event.consume();
             }
         });
@@ -451,29 +614,29 @@ public class OoasDesktopApplication extends Application {
         dialog.getDialogPane().setContent(box);
         dialog.setResultConverter(type -> type == saveButtonType()
                 ? new OrderRequestUpsertRequest(
-                expectedDate.getValue(),
+                orderDate.getValue(),
                 notes.getText().isBlank() ? null : notes.getText().trim(),
                 rows.stream()
-                        .map(row -> new OrderRequestItemRequest(row.sku().id(), row.quantity(), row.expectedDate()))
+                        .map(row -> new OrderRequestItemRequest(row.sku().id(), row.quantity(), null))
                         .toList())
                 : null);
         return dialog.showAndWait();
     }
 
-    private void showOrderRequestDetail(OrderRequestResponse request) {
+    private void showOrderRequestDetail(OrderRequestResponse request, String sentToSites) {
         TableView<OrderRequestItemResponse> items = new TableView<>();
         items.getColumns().setAll(List.of(
                 column("SKU", 130, OrderRequestItemResponse::skuCode),
                 column("Tên", 220, OrderRequestItemResponse::skuName),
                 column("SL", 100, OrderRequestItemResponse::quantity),
-                column("ĐVT", 100, OrderRequestItemResponse::unit),
-                column("Dự kiến", 110, OrderRequestItemResponse::expectedDate)
+                column("ĐVT", 100, OrderRequestItemResponse::unit)
         ));
         items.getItems().setAll(request.items() == null ? List.of() : request.items());
         items.setPrefHeight(240);
         showContentDialog("Request " + request.code(), detailHeader(fields(
                 "Trạng thái", request.status(),
-                "Ngày dự kiến", request.expectedDate(),
+                "Gửi đến", sentToSites,
+                "Ngày đặt", request.expectedDate(),
                 "Tạo bởi", request.createdByName(),
                 "Xử lý bởi", request.processedByName(),
                 "Ghi chú", request.notes(),
@@ -490,6 +653,7 @@ public class OoasDesktopApplication extends Application {
         Button refresh = secondaryButton("Làm mới");
         Button detail = secondaryButton("Chi tiết");
         Button updateStatus = secondaryButton("Cập nhật trạng thái");
+        Button confirmPo = primaryButton("Xác nhận đơn hàng");
         Button cancel = secondaryButton("Hủy");
 
         TableView<PurchaseOrderResponse> table = new TableView<>();
@@ -506,14 +670,36 @@ public class OoasDesktopApplication extends Application {
         ));
         VBox.setVgrow(table, Priority.ALWAYS);
 
-        Runnable load = () -> call("Đang tải PO...", database.listPurchaseOrders(enumSelection(statusFilter, POStatus.class, "Tất cả trạng thái"), null, search.getText()), table.getItems()::setAll);
+        Runnable load = () -> call("Đang tải PO...", database.listPurchaseOrders(
+                enumSelection(statusFilter, POStatus.class, "Tất cả trạng thái"), 
+                currentUser.role() == Role.SITE ? currentUser.siteId() : null, 
+                search.getText()), table.getItems()::setAll);
         refresh.setOnAction(event -> load.run());
         search.setOnAction(event -> load.run());
         detail.setOnAction(event -> withSelected(table, row -> call("Đang tải chi tiết PO...", database.purchaseOrderDetail(row.id()), this::showPurchaseOrderDetail)));
         updateStatus.setOnAction(event -> withSelected(table, row -> showPoStatusDialog(row).ifPresent(change -> call("Đang cập nhật trạng thái PO...", database.updatePurchaseOrderStatus(row.id(), change.status(), change.actualArrivalDate()), updated -> load.run()))));
+        confirmPo.setOnAction(event -> withSelected(table, row -> {
+            if (row.status() != POStatus.PENDING_CONFIRM) {
+                alert(Alert.AlertType.WARNING, "Không thể xác nhận", "Chỉ có thể xác nhận đơn hàng đang chờ xác nhận (PENDING_CONFIRM).");
+                return;
+            }
+            call("Đang xác nhận đơn hàng...", database.updatePurchaseOrderStatus(row.id(), POStatus.PREPARING, null), updated -> load.run());
+        }));
         cancel.setOnAction(event -> withReason("Hủy PO", reason -> withSelected(table, row -> call("Đang hủy PO...", database.cancelPurchaseOrder(row.id(), reason), updated -> load.run()))));
 
-        page.getChildren().addAll(toolbar(statusFilter, search, refresh, detail, updateStatus, cancel), table);
+        List<Node> tbNodes = new java.util.ArrayList<>();
+        tbNodes.add(statusFilter);
+        tbNodes.add(search);
+        tbNodes.add(refresh);
+        tbNodes.add(detail);
+        if (currentUser.role() == Role.SITE) {
+            tbNodes.add(confirmPo);
+        } else {
+            tbNodes.add(updateStatus);
+            tbNodes.add(cancel);
+        }
+
+        page.getChildren().addAll(toolbar(tbNodes.toArray(new Node[0])), table);
         setPage(page);
         load.run();
     }
@@ -549,6 +735,51 @@ public class OoasDesktopApplication extends Application {
                 "Ngày đến thực tế", order.actualArrivalDate(),
                 "Lý do hủy", order.cancelReason()
         ), items));
+    }
+
+    private void showMyInventory() {
+        String siteName = currentUser.siteName() != null ? currentUser.siteName() : "Cơ sở của tôi";
+        VBox page = page("Tồn kho của tôi - " + siteName);
+
+        Button refresh = secondaryButton("Làm mới");
+        Button upsertInventory = primaryButton("Cập nhật số lượng");
+
+        TableView<InventoryResponse> inventoryTable = new TableView<>();
+        inventoryTable.getColumns().setAll(List.of(
+                column("SKU", 130, InventoryResponse::skuCode),
+                column("Tên", 250, InventoryResponse::skuName),
+                column("SL", 100, InventoryResponse::quantity),
+                column("ĐVT", 100, InventoryResponse::unit),
+                column("Cập nhật gần nhất", 160, InventoryResponse::updatedAt)
+        ));
+        VBox.setVgrow(inventoryTable, Priority.ALWAYS);
+
+        ObservableList<SkuResponse> skuRows = FXCollections.observableArrayList();
+        Runnable loadSkus = () -> call("Đang tải danh sách SKU...", database.listSkus(""), skuRows::setAll);
+        Runnable loadInventory = () -> {
+            if (currentUser.siteId() == null) return;
+            call("Đang tải tồn kho...", database.siteInventory(currentUser.siteId()), inventoryTable.getItems()::setAll);
+        };
+
+        refresh.setOnAction(event -> {
+            loadSkus.run();
+            loadInventory.run();
+        });
+
+        upsertInventory.setOnAction(event -> {
+            if (currentUser.siteId() == null) {
+                alert(Alert.AlertType.WARNING, "Lỗi", "Tài khoản của bạn chưa được liên kết với cơ sở nào.");
+                return;
+            }
+            showInventoryDialog(skuRows).ifPresent(draft -> call("Đang lưu tồn kho...", 
+                database.upsertInventory(currentUser.siteId(), draft.sku().id(), draft.quantity()), 
+                saved -> loadInventory.run()));
+        });
+
+        page.getChildren().addAll(toolbar(refresh, upsertInventory), inventoryTable);
+        setPage(page);
+        loadSkus.run();
+        loadInventory.run();
     }
 
     private void showSites() {
@@ -614,9 +845,23 @@ public class OoasDesktopApplication extends Application {
         editSku.setOnAction(event -> withSelected(skuTable, sku -> showSkuDialog(sku).ifPresent(request -> call("Đang cập nhật SKU...", database.updateSku(sku.id(), request), saved -> loadSkus.run()))));
         upsertInventory.setOnAction(event -> withSelected(siteTable, site -> showInventoryDialog(skuRows).ifPresent(draft -> call("Đang lưu tồn kho...", database.upsertInventory(site.id(), draft.sku().id(), draft.quantity()), saved -> loadInventory.accept(site)))));
 
-        VBox left = new VBox(10, toolbar(siteSearch, refreshSites, newSite, editSite), siteTable);
-        VBox right = new VBox(10, toolbar(upsertInventory), inventoryTable);
-        VBox bottom = new VBox(10, toolbar(newSku, editSku), skuTable);
+        List<Node> leftTbNodes = new java.util.ArrayList<>();
+        leftTbNodes.add(siteSearch);
+        leftTbNodes.add(refreshSites);
+        List<Node> rightTbNodes = new java.util.ArrayList<>();
+        List<Node> bottomTbNodes = new java.util.ArrayList<>();
+        
+        if (currentUser.role() == Role.ADMIN) {
+            leftTbNodes.add(newSite);
+            leftTbNodes.add(editSite);
+            rightTbNodes.add(upsertInventory);
+            bottomTbNodes.add(newSku);
+            bottomTbNodes.add(editSku);
+        }
+
+        VBox left = new VBox(10, toolbar(leftTbNodes.toArray(new Node[0])), siteTable);
+        VBox right = rightTbNodes.isEmpty() ? new VBox(10, inventoryTable) : new VBox(10, toolbar(rightTbNodes.toArray(new Node[0])), inventoryTable);
+        VBox bottom = bottomTbNodes.isEmpty() ? new VBox(10, skuTable) : new VBox(10, toolbar(bottomTbNodes.toArray(new Node[0])), skuTable);
         VBox.setVgrow(siteTable, Priority.ALWAYS);
         VBox.setVgrow(inventoryTable, Priority.ALWAYS);
         VBox.setVgrow(skuTable, Priority.ALWAYS);
@@ -849,23 +1094,23 @@ public class OoasDesktopApplication extends Application {
         accountTab.setClosable(false);
         tabs.getTabs().add(accountTab);
 
-        if (currentUser != null && currentUser.role() == Role.ADMIN) {
-            tabs.getTabs().add(adminUsersTab());
-        }
+        // adminUsersTab removed and extracted to showUsers()
 
         VBox.setVgrow(tabs, Priority.ALWAYS);
         page.getChildren().add(tabs);
         setPage(page);
     }
 
-    private Tab adminUsersTab() {
-        ComboBox<String> status = enumFilter(AccountStatus.class, "Tất cả trạng thái");
+    private void showUsers() {
+        VBox page = page("Quản lý tài khoản");
+
+        ComboBox<String> statusFilter = enumFilter(AccountStatus.class, "Tất cả trạng thái");
         TextField search = new TextField();
         search.setPromptText("Tìm người dùng");
         Button refresh = secondaryButton("Làm mới");
         Button approve = secondaryButton("Phê duyệt");
         Button block = secondaryButton("Khóa");
-        Button role = secondaryButton("Đổi vai trò");
+        Button roleBtn = secondaryButton("Đổi vai trò");
 
         TableView<UserResponse> users = new TableView<>();
         users.getColumns().setAll(List.of(
@@ -878,18 +1123,16 @@ public class OoasDesktopApplication extends Application {
         ));
         VBox.setVgrow(users, Priority.ALWAYS);
 
-        Runnable load = () -> call("Đang tải người dùng...", database.listUsers(enumSelection(status, AccountStatus.class, "Tất cả trạng thái"), search.getText()), users.getItems()::setAll);
+        Runnable load = () -> call("Đang tải người dùng...", database.listUsers(enumSelection(statusFilter, AccountStatus.class, "Tất cả trạng thái"), search.getText()), users.getItems()::setAll);
         refresh.setOnAction(event -> load.run());
         search.setOnAction(event -> load.run());
         approve.setOnAction(event -> withSelected(users, user -> call("Đang phê duyệt...", database.approveUser(user.id()), result -> load.run())));
         block.setOnAction(event -> withSelected(users, user -> call("Đang khóa...", database.blockUser(user.id()), result -> load.run())));
-        role.setOnAction(event -> withSelected(users, user -> showRoleDialog(user).ifPresent(newRole -> call("Đang cập nhật vai trò...", database.updateRole(user.id(), newRole), result -> load.run()))));
+        roleBtn.setOnAction(event -> withSelected(users, user -> showRoleDialog(user).ifPresent(newRole -> call("Đang cập nhật vai trò...", database.updateRole(user.id(), newRole), result -> load.run()))));
 
-        VBox box = new VBox(10, toolbar(status, search, refresh, approve, block, role), users);
-        Tab tab = new Tab("Người dùng", box);
-        tab.setClosable(false);
-        Platform.runLater(load);
-        return tab;
+        page.getChildren().addAll(toolbar(statusFilter, search, refresh, approve, block, roleBtn), users);
+        setPage(page);
+        load.run();
     }
 
     private Optional<Role> showRoleDialog(UserResponse user) {
@@ -1014,18 +1257,6 @@ public class OoasDesktopApplication extends Application {
         return spacer;
     }
 
-    private Region spacerRegion() {
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        return spacer;
-    }
-
-    private Label fixedLabel(String text, double width) {
-        Label label = new Label(text);
-        label.setPrefWidth(width);
-        return label;
-    }
-
     private Spinner<Integer> integerSpinner(int min, int value, int max) {
         Spinner<Integer> spinner = new Spinner<>();
         spinner.setEditable(true);
@@ -1100,14 +1331,6 @@ public class OoasDesktopApplication extends Application {
             values.put(String.valueOf(pairs[i]), pairs[i + 1]);
         }
         return values;
-    }
-
-    private void showJsonDialog(String title, Object value) {
-        TextArea area = new TextArea(database.toPrettyJson(value));
-        area.setEditable(false);
-        area.setWrapText(false);
-        area.setPrefSize(760, 440);
-        showContentDialog(title, area);
     }
 
     private void showContentDialog(String title, Node contentNode) {
@@ -1214,7 +1437,7 @@ public class OoasDesktopApplication extends Application {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private record OrderLineDraft(SkuResponse sku, int quantity, LocalDate expectedDate) {
+    private record OrderLineDraft(SkuResponse sku, int quantity) {
     }
 
     private record PoStatusDraft(POStatus status, LocalDate actualArrivalDate) {

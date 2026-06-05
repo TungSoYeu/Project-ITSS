@@ -23,7 +23,7 @@ public class DatabaseClient {
 
     public DatabaseClient(String jdbcUrl) {
         Map<String, String> env = loadDotEnv();
-        this.jdbcUrl = firstNonBlank(env.get("DB_URL"), System.getenv("DB_URL"), jdbcUrl, "jdbc:postgresql://localhost:5432/ooas");
+        this.jdbcUrl = firstNonBlank(env.get("DB_URL"), System.getenv("DB_URL"), jdbcUrl, "jdbc:postgresql://localhost:5433/ooas");
         this.dbUsername = firstNonBlank(env.get("DB_USERNAME"), System.getenv("DB_USERNAME"), env.get("POSTGRES_USER"), System.getenv("POSTGRES_USER"), "postgres");
         this.dbPassword = firstNonBlank(env.get("DB_PASSWORD"), System.getenv("DB_PASSWORD"), env.get("POSTGRES_PASSWORD"), System.getenv("POSTGRES_PASSWORD"), "admin");
     }
@@ -137,19 +137,19 @@ public class DatabaseClient {
     public CompletableFuture<List<UserResponse>> listUsers(AccountStatus status, String search) {
         return async(conn -> {
             List<Object> params = new ArrayList<>();
-            StringBuilder sql = new StringBuilder("SELECT * FROM users WHERE 1=1");
+            StringBuilder sql = new StringBuilder("SELECT u.*, s.name as site_name FROM users u LEFT JOIN sites s ON s.id=u.site_id WHERE 1=1");
             if (status != null) {
-                sql.append(" AND status=?");
+                sql.append(" AND u.status=?");
                 params.add(status.name());
             }
             if (hasText(search)) {
-                sql.append(" AND (lower(email) LIKE ? OR lower(full_name) LIKE ? OR lower(employee_id) LIKE ?)");
+                sql.append(" AND (lower(u.email) LIKE ? OR lower(u.full_name) LIKE ? OR lower(u.employee_id) LIKE ?)");
                 String like = like(search);
                 params.add(like);
                 params.add(like);
                 params.add(like);
             }
-            sql.append(" ORDER BY created_at DESC");
+            sql.append(" ORDER BY u.created_at DESC");
             return query(conn, sql.toString(), params, this::mapUser);
         });
     }
@@ -288,11 +288,24 @@ public class DatabaseClient {
     }
 
     public CompletableFuture<List<OrderRequestResponse>> listOrderRequests(RequestStatus status, String search) {
-        return async(conn -> orderRequests(conn, status, search, null));
+        return async(conn -> {
+            UserResponse user = requireCurrentUser(conn);
+            String siteId = (user.role() == Role.SITE) ? user.siteId() : null;
+            return orderRequests(conn, status, search, null, siteId);
+        });
     }
 
     public CompletableFuture<OrderRequestResponse> orderRequestDetail(String id) {
-        return async(conn -> requireOrderRequest(conn, id));
+        return async(conn -> {
+            UserResponse user = requireCurrentUser(conn);
+            String siteId = (user.role() == Role.SITE) ? user.siteId() : null;
+            OrderRequestResponse req = requireOrderRequest(conn, id);
+            if (siteId != null) {
+                boolean hasInquiry = exists(conn, "SELECT 1 FROM site_inquiries WHERE request_id=? AND site_id=?", id, siteId);
+                if (!hasInquiry) throw notFound("Khong tim thay yeu cau");
+            }
+            return req;
+        });
     }
 
     public CompletableFuture<OrderRequestResponse> createOrderRequest(OrderRequestUpsertRequest request) {
@@ -301,7 +314,7 @@ public class DatabaseClient {
             String id = uuid();
             execute(conn, """
                     INSERT INTO order_requests (id, code, expected_date, notes, status, created_by_id, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, 'DRAFT', ?, NOW(), NOW())
+                    VALUES (?, ?, ?, ?, 'PENDING', ?, NOW(), NOW())
                     """, id, generateCode(conn, "YC", "order_requests"), request.expectedDate(), blankToNull(request.notes()), user.id());
             replaceOrderRequestItems(conn, id, request);
             return requireOrderRequest(conn, id);
@@ -310,24 +323,125 @@ public class DatabaseClient {
 
     public CompletableFuture<OrderRequestResponse> updateOrderRequest(String id, OrderRequestUpsertRequest request) {
         return asyncTx(conn -> {
+            OrderRequestResponse existing = requireOrderRequest(conn, id);
+            if (existing.status() != RequestStatus.PENDING) {
+                throw badRequest("Chi co the sua yeu cau o trang thai PENDING");
+            }
             execute(conn, "UPDATE order_requests SET expected_date=?, notes=?, updated_at=NOW() WHERE id=?", request.expectedDate(), blankToNull(request.notes()), id);
             replaceOrderRequestItems(conn, id, request);
             return requireOrderRequest(conn, id);
         });
     }
 
-    public CompletableFuture<OrderRequestResponse> submitOrderRequest(String id) {
-        return async(conn -> {
-            execute(conn, "UPDATE order_requests SET status='PENDING', updated_at=NOW() WHERE id=?", id);
-            return requireOrderRequest(conn, id);
-        });
-    }
+
 
     public CompletableFuture<OrderRequestResponse> cancelOrderRequest(String id, String reason) {
         return async(conn -> {
             execute(conn, "UPDATE order_requests SET status='CANCELLED', cancel_reason=?, updated_at=NOW() WHERE id=?", reason.trim(), id);
             return requireOrderRequest(conn, id);
         });
+    }
+    public CompletableFuture<List<SiteInquiryResponse>> sendInquiries(String requestId, List<AllocationRequest> allocations) {
+        return asyncTx(conn -> {
+            OrderRequestResponse request = requireOrderRequest(conn, requestId);
+            if (request.status() != RequestStatus.PENDING) {
+                throw badRequest("Chi co the gui yeu cau hoi hang cho don hang o trang thai PENDING");
+            }
+            
+            if (allocations == null || allocations.isEmpty()) {
+                throw badRequest("Khong the tim thay nguon cung cap nao cho yeu cau nay.");
+            }
+
+            Map<String, String> siteInquiryIds = new HashMap<>();
+            for (AllocationRequest alloc : allocations) {
+                String inquiryId = siteInquiryIds.computeIfAbsent(alloc.siteId(), siteId -> {
+                    String id = uuid();
+                    try {
+                        execute(conn, "INSERT INTO site_inquiries (id, request_id, site_id, status, created_at, updated_at) VALUES (?, ?, ?, 'PENDING', NOW(), NOW())", id, requestId, siteId);
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return id;
+                });
+                
+                Integer existingQty = queryOne(conn, "SELECT quantity_requested FROM site_inquiry_items WHERE inquiry_id=? AND sku_id=?", List.of(inquiryId, alloc.skuId()), rs -> rs.getInt(1));
+                if (existingQty != null) {
+                    execute(conn, "UPDATE site_inquiry_items SET quantity_requested=quantity_requested+?, updated_at=NOW() WHERE inquiry_id=? AND sku_id=?", alloc.quantity(), inquiryId, alloc.skuId());
+                } else {
+                    execute(conn, "INSERT INTO site_inquiry_items (id, inquiry_id, sku_id, quantity_requested, quantity_available, created_at, updated_at) VALUES (?, ?, ?, ?, 0, NOW(), NOW())", uuid(), inquiryId, alloc.skuId(), alloc.quantity());
+                }
+            }
+            
+            execute(conn, "UPDATE order_requests SET status='WAITING_SITES', updated_at=NOW() WHERE id=?", requestId);
+            return listSiteInquiries(conn, requestId, null);
+        });
+    }
+
+    public CompletableFuture<List<AllocationRequest>> getAllocationsFromInquiries(String requestId) {
+        return async(conn -> query(conn, """
+                SELECT i.site_id, s.sea_lead_time, ii.sku_id, ii.quantity_available
+                FROM site_inquiries i
+                JOIN sites s ON s.id=i.site_id
+                JOIN site_inquiry_items ii ON ii.inquiry_id=i.id
+                WHERE i.request_id=? AND i.status != 'PENDING' AND ii.quantity_available > 0
+                """, List.of(requestId), rs -> {
+            LocalDate arrival = LocalDate.now().plusDays(rs.getInt("sea_lead_time"));
+            return new AllocationRequest(rs.getString("sku_id"), rs.getString("site_id"),
+                    TransportMethod.SEA, rs.getInt("quantity_available"), arrival);
+        }));
+    }
+
+    public CompletableFuture<Void> replyInquiry(String inquiryId, boolean accept) {
+        return asyncTx(conn -> {
+            SiteInquiryResponse inquiry = queryOne(conn, "SELECT i.*, s.name as site_name FROM site_inquiries i JOIN sites s ON s.id=i.site_id WHERE i.id=?", List.of(inquiryId), rs -> mapSiteInquiry(conn, rs, true));
+            if (inquiry == null) throw notFound("Khong tim thay yeu cau");
+            if (!"PENDING".equals(inquiry.status())) throw badRequest("Yeu cau nay da duoc phan hoi");
+
+            if (accept) {
+                for (SiteInquiryItemResponse item : inquiry.items()) {
+                    Integer inventoryQty = queryOne(conn, "SELECT quantity FROM site_inventories WHERE site_id=? AND sku_id=?", List.of(inquiry.siteId(), item.skuId()), rs -> rs.getInt(1));
+                    int available = inventoryQty == null ? 0 : inventoryQty;
+                    execute(conn, "UPDATE site_inquiry_items SET quantity_available=?, updated_at=NOW() WHERE id=?", available, item.id());
+                }
+                execute(conn, "UPDATE site_inquiries SET status='ACCEPTED', updated_at=NOW() WHERE id=?", inquiryId);
+            } else {
+                for (SiteInquiryItemResponse item : inquiry.items()) {
+                    execute(conn, "UPDATE site_inquiry_items SET quantity_available=0, updated_at=NOW() WHERE id=?", item.id());
+                }
+                execute(conn, "UPDATE site_inquiries SET status='REJECTED', updated_at=NOW() WHERE id=?", inquiryId);
+            }
+
+            boolean hasPending = exists(conn, "SELECT 1 FROM site_inquiries WHERE request_id=? AND status='PENDING'", inquiry.requestId());
+            if (!hasPending) {
+                execute(conn, "UPDATE order_requests SET status='PROCESSING', updated_at=NOW() WHERE id=?", inquiry.requestId());
+            }
+            
+            return null;
+        });
+    }
+
+    public List<SiteInquiryResponse> listSiteInquiries(Connection conn, String requestId, String siteId) throws SQLException {
+        List<Object> params = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("SELECT i.*, s.name as site_name FROM site_inquiries i JOIN sites s ON s.id=i.site_id WHERE 1=1");
+        if (requestId != null) {
+            sql.append(" AND i.request_id=?");
+            params.add(requestId);
+        }
+        if (siteId != null) {
+            sql.append(" AND i.site_id=?");
+            params.add(siteId);
+        }
+        sql.append(" ORDER BY i.created_at DESC");
+        return query(conn, sql.toString(), params, rs -> mapSiteInquiry(conn, rs, true));
+    }
+
+    public CompletableFuture<List<SiteInquiryResponse>> getSiteInquiries(String requestId, String siteId) {
+        return async(conn -> listSiteInquiries(conn, requestId, siteId));
+    }
+
+    private SiteInquiryResponse mapSiteInquiry(Connection conn, ResultSet rs, boolean fetchItems) throws SQLException {
+        List<SiteInquiryItemResponse> items = fetchItems ? query(conn, "SELECT i.*, k.code as sku_code, k.name as sku_name FROM site_inquiry_items i JOIN skus k ON k.id=i.sku_id WHERE i.inquiry_id=? ORDER BY k.code", List.of(rs.getString("id")), rsItem -> new SiteInquiryItemResponse(rsItem.getString("id"), rsItem.getString("inquiry_id"), rsItem.getString("sku_id"), rsItem.getString("sku_code"), rsItem.getString("sku_name"), rsItem.getInt("quantity_requested"), rsItem.getInt("quantity_available"), rsItem.getTimestamp("created_at").toLocalDateTime(), rsItem.getTimestamp("updated_at").toLocalDateTime())) : List.of();
+        return new SiteInquiryResponse(rs.getString("id"), rs.getString("request_id"), rs.getString("site_id"), rs.getString("site_name"), rs.getString("status"), rs.getTimestamp("created_at").toLocalDateTime(), rs.getTimestamp("updated_at").toLocalDateTime(), items);
     }
 
     public CompletableFuture<InventoryCheckResponse> inventoryCheck(String requestId) {
@@ -346,30 +460,49 @@ public class DatabaseClient {
         return async(conn -> requirePurchaseOrder(conn, id));
     }
 
-    public CompletableFuture<List<PurchaseOrderResponse>> generatePurchaseOrders(String requestId) {
+    public CompletableFuture<List<PurchaseOrderResponse>> generatePurchaseOrders(String requestId, List<AllocationRequest> allocations) {
         return asyncTx(conn -> {
             UserResponse user = requireCurrentUser(conn);
             execute(conn, "UPDATE order_requests SET status='PROCESSING', processed_by_id=?, updated_at=NOW() WHERE id=?", user.id(), requestId);
-            OrderRequestResponse request = requireOrderRequest(conn, requestId);
-            OptimizationResponse optimization = optimizeOrder(conn, request);
-            if (!optimization.warnings().isEmpty()) {
-                throw badRequest("Khong the tao PO vi con canh bao thieu hang: " + String.join("; ", optimization.warnings()));
+            
+            if (allocations == null || allocations.isEmpty()) {
+                throw badRequest("Khong co phuong an phan bo nao duoc chon");
             }
-            if (optimization.allocations().isEmpty()) {
-                throw badRequest("Khong co phuong an phan bo de tao PO");
-            }
+
             Map<String, String> poIds = new LinkedHashMap<>();
-            for (AllocationResponse allocation : optimization.allocations()) {
+            for (AllocationRequest allocation : allocations) {
                 String key = allocation.siteId() + "|" + allocation.transportMethod();
-                String poId = poIds.computeIfAbsent(key, ignored -> insertPurchaseOrder(conn, requestId, user.id(), allocation));
+                String poId = poIds.computeIfAbsent(key, ignored -> {
+                    try {
+                        String id = uuid();
+                        execute(conn, """
+                                INSERT INTO purchase_orders (id, code, request_id, site_id, created_by_id, transport_method, status, expected_arrival_date, created_at, updated_at)
+                                VALUES (?, ?, ?, ?, ?, ?, 'PENDING_CONFIRM', ?, NOW(), NOW())
+                                """, id, generateCode(conn, "PO", "purchase_orders"), requestId, allocation.siteId(), user.id(), allocation.transportMethod().name(), allocation.expectedArrivalDate());
+                        return id;
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+                
+                if (exists(conn, "SELECT 1 FROM purchase_order_items WHERE purchase_order_id=? AND sku_id=?", poId, allocation.skuId())) {
+                    throw badRequest("San pham da ton tai trong PO (Loi trung ID: " + allocation.skuId() + ")");
+                }
+
                 execute(conn, """
                         INSERT INTO purchase_order_items (id, purchase_order_id, sku_id, quantity_ordered, quantity_received, difference, created_at, updated_at)
                         VALUES (?, ?, ?, ?, 0, 0, NOW(), NOW())
                         """, uuid(), poId, allocation.skuId(), allocation.quantity());
-                execute(conn, """
+                
+                int updated = queryOne(conn, """
                         UPDATE site_inventories SET quantity=quantity-?, updated_at=NOW()
                         WHERE site_id=? AND sku_id=? AND quantity>=?
-                        """, allocation.quantity(), allocation.siteId(), allocation.skuId(), allocation.quantity());
+                        RETURNING 1
+                        """, List.of(allocation.quantity(), allocation.siteId(), allocation.skuId(), allocation.quantity()), rs -> 1);
+                        
+                if (updated != 1) {
+                    throw badRequest("Kho khong du so luong cho " + allocation.skuId());
+                }
             }
             execute(conn, "UPDATE order_requests SET status='ORDERED', updated_at=NOW() WHERE id=?", requestId);
             return purchaseOrders(conn, null, null, null, new ArrayList<>(poIds.values()));
@@ -461,10 +594,8 @@ public class DatabaseClient {
     private InventoryCheckResponse checkInventory(Connection conn, OrderRequestResponse request) throws SQLException {
         List<CandidateResponse> candidates = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
-        LocalDate today = LocalDate.now();
         for (OrderRequestItemResponse item : request.items()) {
-            LocalDate needDate = item.expectedDate() == null ? request.expectedDate() : item.expectedDate();
-            List<CandidateResponse> feasible = candidatesForItem(conn, item, needDate, today);
+            List<CandidateResponse> feasible = candidatesForItem(conn, request.id(), item);
             int total = feasible.stream().mapToInt(CandidateResponse::availableQuantity).sum();
             if (total < item.quantity()) {
                 warnings.add("SKU " + item.skuCode() + " thieu " + (item.quantity() - total) + " " + item.unit());
@@ -477,15 +608,15 @@ public class DatabaseClient {
     private OptimizationResponse optimizeOrder(Connection conn, OrderRequestResponse request) throws SQLException {
         List<AllocationResponse> allocations = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
-        LocalDate today = LocalDate.now();
         for (OrderRequestItemResponse item : request.items()) {
-            LocalDate needDate = item.expectedDate() == null ? request.expectedDate() : item.expectedDate();
-            List<CandidateResponse> candidates = candidatesForItem(conn, item, needDate, today).stream()
-                    .sorted(Comparator.comparing(CandidateResponse::transportMethod).thenComparing(CandidateResponse::availableQuantity, Comparator.reverseOrder()))
+            List<CandidateResponse> candidates = candidatesForItem(conn, request.id(), item).stream()
+                    .sorted(Comparator.comparing(CandidateResponse::feasible).reversed()
+                            .thenComparing(CandidateResponse::transportMethod)
+                            .thenComparing(CandidateResponse::availableQuantity, Comparator.reverseOrder()))
                     .toList();
             int total = candidates.stream().mapToInt(CandidateResponse::availableQuantity).sum();
             if (total < item.quantity()) {
-                warnings.add("SKU " + item.skuCode() + " khong du nguon cung kha thi. Thieu " + (item.quantity() - total));
+                warnings.add("SKU " + item.skuCode() + " không đủ nguồn cung. Thiếu " + (item.quantity() - total));
             }
             int remaining = item.quantity();
             for (CandidateResponse candidate : candidates) {
@@ -494,6 +625,9 @@ public class DatabaseClient {
                 }
                 int quantity = Math.min(remaining, candidate.availableQuantity());
                 remaining -= quantity;
+                if (!candidate.feasible()) {
+                    warnings.add("SKU " + item.skuCode() + " giao từ " + candidate.siteCode() + " sẽ bị trễ so với dự kiến.");
+                }
                 allocations.add(new AllocationResponse(item.skuId(), item.skuCode(), item.skuName(),
                         candidate.siteId(), candidate.siteCode(), candidate.siteName(), candidate.transportMethod(), quantity, candidate.expectedArrivalDate()));
             }
@@ -501,38 +635,18 @@ public class DatabaseClient {
         return new OptimizationResponse(request.id(), request.code(), allocations, warnings);
     }
 
-    private List<CandidateResponse> candidatesForItem(Connection conn, OrderRequestItemResponse item, LocalDate needDate, LocalDate today) throws SQLException {
+    private List<CandidateResponse> candidatesForItem(Connection conn, String requestId, OrderRequestItemResponse item) throws SQLException {
         return query(conn, """
-                SELECT si.quantity, s.id site_id, s.code site_code, s.name site_name, s.sea_lead_time, s.air_lead_time
-                FROM site_inventories si JOIN sites s ON s.id=si.site_id
+                SELECT si.quantity AS quantity, s.id site_id, s.code site_code, s.name site_name, s.sea_lead_time, s.air_lead_time
+                FROM site_inventories si
+                JOIN sites s ON s.id = si.site_id
                 WHERE si.sku_id=? AND si.quantity>0 AND s.active=true
                 ORDER BY s.code
                 """, List.of(item.skuId()), rs -> {
-            LocalDate sea = today.plusDays(rs.getInt("sea_lead_time"));
-            if (!sea.isAfter(needDate)) {
-                return new CandidateResponse(item.skuId(), item.skuCode(), item.skuName(), item.quantity(), rs.getString("site_id"),
-                        rs.getString("site_code"), rs.getString("site_name"), rs.getInt("quantity"), TransportMethod.SEA, rs.getInt("sea_lead_time"), sea, true);
-            }
-            LocalDate air = today.plusDays(rs.getInt("air_lead_time"));
-            if (!air.isAfter(needDate)) {
-                return new CandidateResponse(item.skuId(), item.skuCode(), item.skuName(), item.quantity(), rs.getString("site_id"),
-                        rs.getString("site_code"), rs.getString("site_name"), rs.getInt("quantity"), TransportMethod.AIR, rs.getInt("air_lead_time"), air, true);
-            }
-            return null;
+            LocalDate sea = LocalDate.now().plusDays(rs.getInt("sea_lead_time"));
+            return new CandidateResponse(item.skuId(), item.skuCode(), item.skuName(), item.quantity(), rs.getString("site_id"),
+                    rs.getString("site_code"), rs.getString("site_name"), rs.getInt("quantity"), TransportMethod.SEA, rs.getInt("sea_lead_time"), sea, true);
         }).stream().filter(Objects::nonNull).toList();
-    }
-
-    private String insertPurchaseOrder(Connection conn, String requestId, String userId, AllocationResponse allocation) {
-        try {
-            String id = uuid();
-            execute(conn, """
-                    INSERT INTO purchase_orders (id, code, request_id, site_id, created_by_id, transport_method, status, expected_arrival_date, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, 'PENDING_CONFIRM', ?, NOW(), NOW())
-                    """, id, generateCode(conn, "PO", "purchase_orders"), requestId, allocation.siteId(), userId, allocation.transportMethod().name(), allocation.expectedArrivalDate());
-            return id;
-        } catch (SQLException e) {
-            throw db(e);
-        }
     }
 
     private String addTrackingRow(Connection conn, String purchaseOrderId, POStatus status, String location, String notes, String evidence) throws SQLException {
@@ -545,10 +659,10 @@ public class DatabaseClient {
         return id;
     }
 
-    private List<OrderRequestResponse> orderRequests(Connection conn, RequestStatus status, String search, String id) throws SQLException {
+    private List<OrderRequestResponse> orderRequests(Connection conn, RequestStatus status, String search, String id, String siteId) throws SQLException {
         List<Object> params = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
-                SELECT r.*, cu.full_name created_by_name, pu.full_name processed_by_name, COUNT(i.id) item_count
+                SELECT r.*, cu.full_name created_by_name, pu.full_name processed_by_name, COALESCE(SUM(i.quantity), 0) item_count
                 FROM order_requests r
                 JOIN users cu ON cu.id=r.created_by_id
                 LEFT JOIN users pu ON pu.id=r.processed_by_id
@@ -558,6 +672,10 @@ public class DatabaseClient {
         if (id != null) {
             sql.append(" AND r.id=?");
             params.add(id);
+        }
+        if (siteId != null) {
+            sql.append(" AND EXISTS (SELECT 1 FROM site_inquiries si WHERE si.request_id=r.id AND si.site_id=?)");
+            params.add(siteId);
         }
         if (status != null) {
             sql.append(" AND r.status=?");
@@ -575,7 +693,7 @@ public class DatabaseClient {
 
     private OrderRequestResponse requireOrderRequest(Connection conn, String id) throws SQLException {
         OrderRequestResponse request = queryOne(conn, "SELECT * FROM (" + """
-                SELECT r.*, cu.full_name created_by_name, pu.full_name processed_by_name, COUNT(i.id) item_count
+                SELECT r.*, cu.full_name created_by_name, pu.full_name processed_by_name, COALESCE(SUM(i.quantity), 0) item_count
                 FROM order_requests r
                 JOIN users cu ON cu.id=r.created_by_id
                 LEFT JOIN users pu ON pu.id=r.processed_by_id
@@ -674,8 +792,12 @@ public class DatabaseClient {
     }
 
     private UserResponse mapUser(ResultSet rs) throws SQLException {
+        String siteId = null;
+        String siteName = null;
+        try { siteId = rs.getString("site_id"); } catch (SQLException e) {}
+        try { siteName = rs.getString("site_name"); } catch (SQLException e) {}
         return new UserResponse(rs.getString("id"), rs.getString("email"), rs.getString("full_name"), rs.getString("employee_id"),
-                Role.valueOf(rs.getString("role")), AccountStatus.valueOf(rs.getString("status")), instant(rs, "created_at"));
+                Role.valueOf(rs.getString("role")), AccountStatus.valueOf(rs.getString("status")), siteId, siteName, instant(rs, "created_at"));
     }
 
     private SkuResponse mapSku(ResultSet rs) throws SQLException {
@@ -713,7 +835,7 @@ public class DatabaseClient {
     }
 
     private UserWithPassword findUserByEmail(Connection conn, String email) throws SQLException {
-        return queryOne(conn, "SELECT * FROM users WHERE lower(email)=lower(?)", List.of(email.trim()), rs -> new UserWithPassword(mapUser(rs), rs.getString("password")));
+        return queryOne(conn, "SELECT u.*, s.name as site_name FROM users u LEFT JOIN sites s ON s.id=u.site_id WHERE lower(u.email)=lower(?)", List.of(email.trim()), rs -> new UserWithPassword(mapUser(rs), rs.getString("password")));
     }
 
     private UserResponse requireCurrentUser(Connection conn) throws SQLException {
@@ -724,7 +846,7 @@ public class DatabaseClient {
         if (!hasText(currentUserId)) {
             throw unauthorized("Vui long dang nhap");
         }
-        UserWithPassword user = queryOne(conn, "SELECT * FROM users WHERE id=?", List.of(currentUserId), rs -> new UserWithPassword(mapUser(rs), rs.getString("password")));
+        UserWithPassword user = queryOne(conn, "SELECT u.*, s.name as site_name FROM users u LEFT JOIN sites s ON s.id=u.site_id WHERE u.id=?", List.of(currentUserId), rs -> new UserWithPassword(mapUser(rs), rs.getString("password")));
         if (user == null) {
             throw unauthorized("Phien dang nhap khong hop le");
         }
@@ -868,6 +990,9 @@ public class DatabaseClient {
         Map<String, String> values = new HashMap<>();
         Path path = Path.of(".env");
         if (!Files.exists(path)) {
+            path = Path.of("../.env");
+        }
+        if (!Files.exists(path)) {
             return values;
         }
         try {
@@ -994,3 +1119,6 @@ public class DatabaseClient {
         T map(ResultSet rs) throws SQLException;
     }
 }
+
+
+

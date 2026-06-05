@@ -1,5 +1,5 @@
 -- Clean, repeatable test data for OOAS JavaFX/JDBC.
--- Password for all seeded accounts: warehouse123
+-- Password for all seeded accounts: password123
 -- Run manually when you want to reset test data:
 -- docker exec -i ooas-postgres psql -U postgres -d ooas < db/migration/V2__seed_test_data.sql
 
@@ -7,6 +7,8 @@ TRUNCATE TABLE
     shipment_trackings,
     purchase_order_items,
     purchase_orders,
+    site_inquiry_items,
+    site_inquiries,
     order_request_items,
     order_requests,
     site_inventories,
@@ -17,34 +19,75 @@ RESTART IDENTITY CASCADE;
 
 DO $$
 DECLARE
-    test_password VARCHAR(255) := '$2a$10$jVd5r043RZUEBzPs1l0uHuMu5IEmxfL7k4jUDQxvaQK3cePbPXvEq';
+    test_password VARCHAR(255) := '$2a$10$X94AffO22FpPUXtglNVqkuZOjDcjsvcj4y2dogHVgSzfw.psFgJn2';
 BEGIN
-    INSERT INTO users (id, email, password, full_name, employee_id, role, status, created_at, updated_at)
+    INSERT INTO sites (id, code, name, country, sea_lead_time, air_lead_time, active, created_at, updated_at)
     VALUES
-        ('10000000-0000-0000-0000-000000000000', 'admin.test@ooas.local', test_password, 'OOAS Admin', 'TEST-ADMIN', 'ADMIN', 'APPROVED', NOW(), NOW()),
-        ('10000000-0000-0000-0000-000000000001', 'sales.test@ooas.local', test_password, 'Sales User', 'TEST-SALES', 'SALES', 'APPROVED', NOW(), NOW()),
-        ('10000000-0000-0000-0000-000000000002', 'overseas.test@ooas.local', test_password, 'Overseas User', 'TEST-OVERSEAS', 'OVERSEAS_ORDER', 'APPROVED', NOW(), NOW()),
-        ('10000000-0000-0000-0000-000000000003', 'warehouse.test@ooas.local', test_password, 'Warehouse User', 'TEST-WAREHOUSE', 'WAREHOUSE', 'APPROVED', NOW(), NOW()),
-        ('10000000-0000-0000-0000-000000000004', 'supplier.test@ooas.local', test_password, 'Supplier User', 'TEST-SUPPLIER', 'SUPPLIER', 'APPROVED', NOW(), NOW());
+        ('30000000-0000-0000-0000-000000000001', 'HKG-FAST', 'Chuyen phat nhanh Hong Kong', 'Hong Kong', 8, 2, TRUE, NOW(), NOW()),
+        ('30000000-0000-0000-0000-000000000002', 'SG-HUB', 'Singapore Regional Hub', 'Singapore', 10, 3, TRUE, NOW(), NOW()),
+        ('30000000-0000-0000-0000-000000000003', 'JP-TOKYO', 'Tokyo Central Hub', 'Nhat Ban', 15, 4, TRUE, NOW(), NOW()),
+        ('30000000-0000-0000-0000-000000000004', 'US-LAX', 'LAX Global Forwarding', 'My', 30, 7, TRUE, NOW(), NOW()),
+        ('30000000-0000-0000-0000-000000000005', 'CN-SHENZHEN', 'Shenzhen Factory Hub', 'Trung Quoc', 7, 2, TRUE, NOW(), NOW());
+
+    INSERT INTO users (id, email, password, full_name, employee_id, role, status, site_id, created_at, updated_at)
+    VALUES
+        ('10000000-0000-0000-0000-000000000000', 'admin.test@ooas.local', test_password, 'OOAS Admin', 'TEST-ADMIN', 'ADMIN', 'APPROVED', NULL, NOW(), NOW()),
+        ('10000000-0000-0000-0000-000000000001', 'sales.test@ooas.local', test_password, 'Sales User', 'TEST-SALES', 'SALES', 'APPROVED', NULL, NOW(), NOW()),
+        ('10000000-0000-0000-0000-000000000002', 'overseas.test@ooas.local', test_password, 'Overseas User', 'TEST-OVERSEAS', 'OVERSEAS_ORDER', 'APPROVED', NULL, NOW(), NOW()),
+        ('10000000-0000-0000-0000-000000000003', 'warehouse.test@ooas.local', test_password, 'Warehouse User', 'TEST-WAREHOUSE', 'WAREHOUSE', 'APPROVED', NULL, NOW(), NOW()),
+        ('10000000-0000-0000-0000-000000000004', 'hkg-fast.site@ooas.local', test_password, 'HKG-FAST Site', 'SITE-HKG-FAST', 'SITE', 'APPROVED', '30000000-0000-0000-0000-000000000001', NOW(), NOW()),
+        ('10000000-0000-0000-0000-000000000005', 'sg-hub.site@ooas.local', test_password, 'SG-HUB Site', 'SITE-SG-HUB', 'SITE', 'APPROVED', '30000000-0000-0000-0000-000000000002', NOW(), NOW()),
+        ('10000000-0000-0000-0000-000000000006', 'jp-tokyo.site@ooas.local', test_password, 'JP-TOKYO Site', 'SITE-JP-TOKYO', 'SITE', 'APPROVED', '30000000-0000-0000-0000-000000000003', NOW(), NOW()),
+        ('10000000-0000-0000-0000-000000000007', 'us-lax.site@ooas.local', test_password, 'US-LAX Site', 'SITE-US-LAX', 'SITE', 'APPROVED', '30000000-0000-0000-0000-000000000004', NOW(), NOW()),
+        ('10000000-0000-0000-0000-000000000008', 'cn-shenzhen.site@ooas.local', test_password, 'CN-SHENZHEN Site', 'SITE-CN-SHENZHEN', 'SITE', 'APPROVED', '30000000-0000-0000-0000-000000000005', NOW(), NOW());
 
     INSERT INTO skus (id, code, name, unit, description, created_at, updated_at)
     VALUES
         ('20000000-0000-0000-0000-000000000001', 'MONITOR-27', 'Man hinh 27 inch', 'cai', 'Man hinh lam viec QHD', NOW(), NOW()),
         ('20000000-0000-0000-0000-000000000002', 'MOUSE-WL', 'Chuot khong day', 'cai', 'Chuot khong day van phong', NOW(), NOW()),
         ('20000000-0000-0000-0000-000000000003', 'KEYBOARD-MECH', 'Ban phim co', 'cai', 'Ban phim co USB', NOW(), NOW()),
-        ('20000000-0000-0000-0000-000000000004', 'HEADSET-USB', 'Tai nghe USB', 'cai', 'Tai nghe hop truc tuyen', NOW(), NOW());
+        ('20000000-0000-0000-0000-000000000004', 'HEADSET-USB', 'Tai nghe USB', 'cai', 'Tai nghe hop truc tuyen', NOW(), NOW()),
+        ('20000000-0000-0000-0000-000000000005', 'LAPTOP-15', 'Laptop 15.6 inch', 'cai', 'Laptop core i5 van phong', NOW(), NOW()),
+        ('20000000-0000-0000-0000-000000000006', 'MACBOOK-PRO', 'Macbook Pro 14', 'cai', 'Macbook Pro M3 16GB', NOW(), NOW()),
+        ('20000000-0000-0000-0000-000000000007', 'SSD-1TB', 'O cung SSD 1TB', 'cai', 'O cung NVMe Gen 4', NOW(), NOW()),
+        ('20000000-0000-0000-0000-000000000008', 'RAM-16GB', 'RAM 16GB DDR5', 'cai', 'RAM bus 4800MHz', NOW(), NOW()),
+        ('20000000-0000-0000-0000-000000000009', 'VGA-RTX4090', 'Card man hinh RTX 4090', 'cai', 'VGA cao cap 24GB VRAM', NOW(), NOW()),
+        ('20000000-0000-0000-0000-000000000010', 'CPU-I9', 'CPU Intel Core i9', 'cai', 'CPU the he 14', NOW(), NOW()),
+        ('20000000-0000-0000-0000-000000000011', 'CHAIR-GAMING', 'Ghe Gaming cong thai hoc', 'cai', 'Ghe ngoi thoai mai', NOW(), NOW()),
+        ('20000000-0000-0000-0000-000000000012', 'DESK-STANDING', 'Ban dung thong minh', 'cai', 'Ban co the nang ha chieu cao', NOW(), NOW()),
+        ('20000000-0000-0000-0000-000000000013', 'WEBCAM-1080P', 'Webcam 1080p', 'cai', 'Webcam tich hop micro', NOW(), NOW()),
+        ('20000000-0000-0000-0000-000000000014', 'ROUTER-WIFI6', 'Router Wifi 6 AX3000', 'cai', 'Router phat wifi bang tan kep', NOW(), NOW()),
+        ('20000000-0000-0000-0000-000000000015', 'SWITCH-24P', 'Switch 24 port Gigabit', 'cai', 'Switch chia mang', NOW(), NOW()),
+        ('20000000-0000-0000-0000-000000000016', 'CABLE-HDMI', 'Cap HDMI 2.0 2m', 'soi', 'Cap truyen hinh anh 4K', NOW(), NOW()),
+        ('20000000-0000-0000-0000-000000000017', 'HUB-TYPEC', 'Hub Type C 7 in 1', 'cai', 'Hub mo rong ket noi', NOW(), NOW()),
+        ('20000000-0000-0000-0000-000000000018', 'DRIVE-EXTERNAL', 'O cung gan ngoai 2TB', 'cai', 'O cung di dong HDD', NOW(), NOW()),
+        ('20000000-0000-0000-0000-000000000019', 'MICROPHONE', 'Micro thu am studio', 'cai', 'Micro condenser kem shockmount', NOW(), NOW()),
+        ('20000000-0000-0000-0000-000000000020', 'UPS-1000VA', 'Bo luu dien UPS 1000VA', 'cai', 'UPS chong cup dien dot ngot', NOW(), NOW());
 
-    INSERT INTO sites (id, code, name, country, sea_lead_time, air_lead_time, active, created_at, updated_at)
-    VALUES
-        ('30000000-0000-0000-0000-000000000001', 'HKG-FAST', 'Chuyen phat nhanh Hong Kong', 'Hong Kong', 8, 2, TRUE, NOW(), NOW()),
-        ('30000000-0000-0000-0000-000000000002', 'SG-HUB', 'Singapore Regional Hub', 'Singapore', 10, 3, TRUE, NOW(), NOW());
+
 
     INSERT INTO site_inventories (id, site_id, sku_id, quantity, created_at, updated_at)
     VALUES
         ('40000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 80, NOW(), NOW()),
         ('40000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000002', 120, NOW(), NOW()),
         ('40000000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000003', 60, NOW(), NOW()),
-        ('40000000-0000-0000-0000-000000000004', '30000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000004', 70, NOW(), NOW());
+        ('40000000-0000-0000-0000-000000000004', '30000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000004', 70, NOW(), NOW()),
+        ('40000000-0000-0000-0000-000000000005', '30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000005', 200, NOW(), NOW()),
+        ('40000000-0000-0000-0000-000000000006', '30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000007', 500, NOW(), NOW()),
+        ('40000000-0000-0000-0000-000000000007', '30000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000008', 350, NOW(), NOW()),
+        ('40000000-0000-0000-0000-000000000008', '30000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000006', 45, NOW(), NOW()),
+        ('40000000-0000-0000-0000-000000000009', '30000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000009', 10, NOW(), NOW()),
+        ('40000000-0000-0000-0000-000000000010', '30000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000010', 85, NOW(), NOW()),
+        ('40000000-0000-0000-0000-000000000011', '30000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000014', 150, NOW(), NOW()),
+        ('40000000-0000-0000-0000-000000000012', '30000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000015', 40, NOW(), NOW()),
+        ('40000000-0000-0000-0000-000000000013', '30000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000011', 300, NOW(), NOW()),
+        ('40000000-0000-0000-0000-000000000014', '30000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000012', 250, NOW(), NOW()),
+        ('40000000-0000-0000-0000-000000000015', '30000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000016', 1000, NOW(), NOW()),
+        ('40000000-0000-0000-0000-000000000016', '30000000-0000-0000-0000-000000000005', '20000000-0000-0000-0000-000000000017', 400, NOW(), NOW()),
+        ('40000000-0000-0000-0000-000000000017', '30000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000018', 120, NOW(), NOW()),
+        ('40000000-0000-0000-0000-000000000018', '30000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000019', 80, NOW(), NOW()),
+        ('40000000-0000-0000-0000-000000000019', '30000000-0000-0000-0000-000000000004', '20000000-0000-0000-0000-000000000020', 60, NOW(), NOW()),
+        ('40000000-0000-0000-0000-000000000020', '30000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000013', 200, NOW(), NOW());
 
     INSERT INTO order_requests (id, code, expected_date, notes, status, cancel_reason, created_by_id, processed_by_id, created_at, updated_at)
     VALUES
@@ -57,7 +100,9 @@ BEGIN
         ('50000000-0000-0000-0000-000000000007', 'YC-2026-007', CURRENT_DATE, 'Don da den kho can xac nhan', 'ORDERED', NULL, '10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', NOW() - INTERVAL '6 days', NOW()),
         ('50000000-0000-0000-0000-000000000008', 'YC-2026-008', CURRENT_DATE - 3, 'Don da nhap kho khop', 'ORDERED', NULL, '10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', NOW() - INTERVAL '9 days', NOW()),
         ('50000000-0000-0000-0000-000000000009', 'YC-2026-009', CURRENT_DATE - 4, 'Don thua hang de test chenhlech', 'ORDERED', NULL, '10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', NOW() - INTERVAL '10 days', NOW()),
-        ('50000000-0000-0000-0000-000000000010', 'YC-2026-010', CURRENT_DATE - 5, 'Don thieu hang de test chenhlech', 'ORDERED', NULL, '10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', NOW() - INTERVAL '11 days', NOW());
+        ('50000000-0000-0000-0000-000000000010', 'YC-2026-010', CURRENT_DATE - 5, 'Don thieu hang de test chenhlech', 'ORDERED', NULL, '10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', NOW() - INTERVAL '11 days', NOW()),
+        ('50000000-0000-0000-0000-000000000011', 'YC-2026-011', CURRENT_DATE + 7, 'Don moi tao chua xu ly', 'PENDING', NULL, '10000000-0000-0000-0000-000000000001', NULL, NOW() - INTERVAL '1 days', NOW()),
+        ('50000000-0000-0000-0000-000000000012', 'YC-2026-012', CURRENT_DATE + 6, 'Don dang cho Site phan hoi', 'WAITING_SITES', NULL, '10000000-0000-0000-0000-000000000001', NULL, NOW() - INTERVAL '2 days', NOW());
 
     INSERT INTO order_request_items (id, request_id, sku_id, quantity, expected_date, created_at, updated_at)
     VALUES
@@ -72,7 +117,19 @@ BEGIN
         ('60000000-0000-0000-0000-000000000009', '50000000-0000-0000-0000-000000000007', '20000000-0000-0000-0000-000000000001', 16, CURRENT_DATE, NOW(), NOW()),
         ('60000000-0000-0000-0000-000000000010', '50000000-0000-0000-0000-000000000008', '20000000-0000-0000-0000-000000000003', 9, CURRENT_DATE - 3, NOW(), NOW()),
         ('60000000-0000-0000-0000-000000000011', '50000000-0000-0000-0000-000000000009', '20000000-0000-0000-0000-000000000004', 11, CURRENT_DATE - 4, NOW(), NOW()),
-        ('60000000-0000-0000-0000-000000000012', '50000000-0000-0000-0000-000000000010', '20000000-0000-0000-0000-000000000001', 13, CURRENT_DATE - 5, NOW(), NOW());
+        ('60000000-0000-0000-0000-000000000012', '50000000-0000-0000-0000-000000000010', '20000000-0000-0000-0000-000000000001', 13, CURRENT_DATE - 5, NOW(), NOW()),
+        ('60000000-0000-0000-0000-000000000013', '50000000-0000-0000-0000-000000000011', '20000000-0000-0000-0000-000000000001', 50, CURRENT_DATE + 7, NOW(), NOW()),
+        ('60000000-0000-0000-0000-000000000014', '50000000-0000-0000-0000-000000000012', '20000000-0000-0000-0000-000000000002', 100, CURRENT_DATE + 6, NOW(), NOW());
+
+    INSERT INTO site_inquiries (id, request_id, site_id, status, created_at, updated_at)
+    VALUES
+        ('90000000-0000-0000-0000-000000000001', '50000000-0000-0000-0000-000000000012', '30000000-0000-0000-0000-000000000001', 'ACCEPTED', NOW(), NOW()),
+        ('90000000-0000-0000-0000-000000000002', '50000000-0000-0000-0000-000000000012', '30000000-0000-0000-0000-000000000002', 'REJECTED', NOW(), NOW());
+
+    INSERT INTO site_inquiry_items (id, inquiry_id, sku_id, quantity_requested, quantity_available, created_at, updated_at)
+    VALUES
+        ('91000000-0000-0000-0000-000000000001', '90000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000002', 100, 100, NOW(), NOW()),
+        ('91000000-0000-0000-0000-000000000002', '90000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000002', 100, 30, NOW(), NOW());
 
     INSERT INTO purchase_orders (id, code, request_id, site_id, created_by_id, transport_method, status, expected_arrival_date, actual_arrival_date, cancel_reason, created_at, updated_at)
     VALUES

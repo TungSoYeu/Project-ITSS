@@ -18,13 +18,11 @@ import javafx.scene.layout.StackPane;
 
 public final class WarehouseCoordinator {
     private final DatabaseClient database;
-    private final Runnable logout;
     private final StackPane content;
     private final WarehouseAsync async;
 
     public WarehouseCoordinator(DatabaseClient database, Runnable logout, StackPane content, Label status) {
         this.database = database;
-        this.logout = logout;
         this.content = content;
         this.async = new WarehouseAsync(status, logout);
     }

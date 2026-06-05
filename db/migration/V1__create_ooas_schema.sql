@@ -6,6 +6,7 @@ CREATE TABLE users (
     employee_id VARCHAR(100) NOT NULL UNIQUE,
     role VARCHAR(32) NOT NULL,
     status VARCHAR(32) NOT NULL,
+    site_id VARCHAR(36),
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL
 );
@@ -66,6 +67,26 @@ CREATE TABLE order_request_items (
     CONSTRAINT uk_order_request_item_request_sku UNIQUE (request_id, sku_id)
 );
 
+CREATE TABLE site_inquiries (
+    id VARCHAR(36) PRIMARY KEY,
+    request_id VARCHAR(36) NOT NULL REFERENCES order_requests(id) ON DELETE CASCADE,
+    site_id VARCHAR(36) NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE site_inquiry_items (
+    id VARCHAR(36) PRIMARY KEY,
+    inquiry_id VARCHAR(36) NOT NULL REFERENCES site_inquiries(id) ON DELETE CASCADE,
+    sku_id VARCHAR(36) NOT NULL REFERENCES skus(id) ON DELETE CASCADE,
+    quantity_requested INTEGER NOT NULL,
+    quantity_available INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    CONSTRAINT uk_site_inquiry_item_inquiry_sku UNIQUE (inquiry_id, sku_id)
+);
+
 CREATE TABLE purchase_orders (
     id VARCHAR(36) PRIMARY KEY,
     code VARCHAR(100) NOT NULL UNIQUE,
@@ -112,3 +133,7 @@ CREATE INDEX idx_order_requests_status ON order_requests(status);
 CREATE INDEX idx_purchase_orders_status ON purchase_orders(status);
 CREATE INDEX idx_purchase_orders_site ON purchase_orders(site_id);
 CREATE INDEX idx_shipment_trackings_po ON shipment_trackings(purchase_order_id);
+CREATE INDEX idx_site_inquiries_request ON site_inquiries(request_id);
+
+ALTER TABLE users ADD CONSTRAINT fk_users_site FOREIGN KEY (site_id) REFERENCES sites(id) ON DELETE SET NULL;
+
