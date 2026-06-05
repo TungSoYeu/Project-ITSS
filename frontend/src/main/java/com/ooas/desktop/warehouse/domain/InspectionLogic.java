@@ -26,9 +26,6 @@ public final class InspectionLogic {
         line.difference().setText(quantity + quality);
         line.difference().getStyleClass().setAll(hasIssue(line) ? "difference-warning" : "difference-ok");
         if (!hasIssue(line)) {
-            line.reason().setValue("Chưa chọn");
-            line.resolution().setValue("Chưa chọn");
-            line.resolutionNotes().clear();
             line.card().getStyleClass().remove("inspection-card-mismatch");
         } else if (!line.card().getStyleClass().contains("inspection-card-mismatch")) {
             line.card().getStyleClass().add("inspection-card-mismatch");
@@ -60,11 +57,11 @@ public final class InspectionLogic {
     public static String note(InspectionLine line) {
         String inspection = "Kiểm kê: Tình trạng=" + line.condition().getValue()
                 + "; Bao bì=" + line.packaging().getValue()
+                + "; Số lượng đặt=" + line.item().quantityOrdered()
+                + "; Số lượng thực nhận=" + line.quantity().getValue()
+                + "; Chênh lệch=" + difference(line)
                 + "; Ghi chú kiểm kê=" + line.inspectionNotes().getText().trim();
-        return !hasIssue(line) ? inspection : inspection
-                + "; Lý do=" + line.reason().getValue()
-                + "; Xử lý=" + line.resolution().getValue()
-                + "; Ghi chú xử lý=" + line.resolutionNotes().getText().trim();
+        return !hasIssue(line) ? inspection : inspection + "; Kết quả=Có chênh lệch/cần xử lý";
     }
 
     public static boolean unresolved(InspectionLine line) {

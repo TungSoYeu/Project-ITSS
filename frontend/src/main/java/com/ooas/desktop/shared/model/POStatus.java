@@ -5,6 +5,7 @@ public enum POStatus {
     PREPARING,
     SHIPPING,
     ARRIVED,
+    NEEDS_ACTION,
     COMPLETED,
     CANCELLED
 }

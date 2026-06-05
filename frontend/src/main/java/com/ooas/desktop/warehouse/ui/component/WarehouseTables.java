@@ -39,12 +39,11 @@ public final class WarehouseTables {
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.getColumns().setAll(List.of(
                 column("Mã hàng", 120, PurchaseOrderItemResponse::skuCode),
-                column("Tên hàng", 210, PurchaseOrderItemResponse::skuName),
-                column("Đơn vị", 90, PurchaseOrderItemResponse::unit),
-                column("SL đặt", 90, PurchaseOrderItemResponse::quantityOrdered),
-                column("SL thực nhận", 110, PurchaseOrderItemResponse::quantityReceived),
-                column("Sai lệch", 130, WarehouseTables::difference),
-                wrappedColumn("Thông tin kiểm kê / Xử lý", 360, PurchaseOrderItemResponse::notes)
+                column("Tên hàng", 240, row -> row.skuName() + " (" + row.unit() + ")"),
+                column("SL đặt", 100, PurchaseOrderItemResponse::quantityOrdered),
+                column("SL nhận", 100, PurchaseOrderItemResponse::quantityReceived),
+                column("Chênh lệch", 130, WarehouseTables::difference),
+                wrappedColumn("Ghi chú kiểm nhận", 360, PurchaseOrderItemResponse::notes)
         ));
         table.setMinHeight(210);
         table.getStyleClass().add("warehouse-item-table");

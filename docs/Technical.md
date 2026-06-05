@@ -52,7 +52,7 @@ Nguyên lý tương tác:
 
 ### 3.1. JDBC trực tiếp
 
-*   Tất cả truy vấn nằm trong `src/main/java/com/ooas/repository`.
+*   Tất cả truy vấn nằm trong `frontend/src/main/java/com/ooas/desktop/shared/api/DatabaseClient.java`.
 *   Query dùng `PreparedStatement` để truyền tham số, hạn chế lỗi SQL injection.
 *   Transaction được quản lý thủ công bằng `setAutoCommit(false)`, `commit()` và `rollback()`.
 *   Không dùng Spring Data JPA, Hibernate, Jackson hay Java `HttpClient` trong app desktop.
@@ -78,12 +78,12 @@ Thuật toán nằm trong `DatabaseClient` và chạy trực tiếp trên dữ l
 
 ## 4. JavaFX desktop client
 
-*   Source chính nằm trong `src/main/java/com/ooas`.
+*   Source chính nằm trong `frontend/src/main/java/com/ooas/desktop`.
 *   Entry point: `com.ooas.desktop.application.OoasDesktopApplication`.
-*   Package `app` chứa JavaFX entry point/UI, `model` chứa enum/record nghiệp vụ tách theo từng file, `repository` chứa JDBC, `exception` chứa lỗi dùng chung.
+*   Package `application` chứa JavaFX entry point/UI, `shared.model` chứa enum/record nghiệp vụ tách theo từng file, `shared.api` chứa JDBC client, `shared.exception` chứa lỗi dùng chung.
 *   Các màn hình chính: Dashboard, Order Requests, Purchase Orders, Sites & Inventory, Shipments, Warehouse, Profile/Admin.
 *   UI dùng JavaFX controls native như `TableView`, `TabPane`, `SplitPane`, `Dialog`, `DatePicker`, `ComboBox` và `Spinner`.
-*   Stylesheet `app.css` giữ layout, sidebar, button, table và dashboard metric nhất quán.
+*   Stylesheet trong `frontend/src/main/resources/com/ooas/desktop` giữ layout, sidebar, button, table và dashboard metric nhất quán.
 
 ---
 

@@ -28,8 +28,14 @@
 }
 
 .warehouse-shell .table-view .column-header .label {
-    -fx-wrap-text: true;
+    -fx-wrap-text: false;
     -fx-alignment: center;
+    -fx-font-size: 13px;
+    -fx-font-weight: 800;
+}
+
+.warehouse-shell .table-view .column-header {
+    -fx-pref-height: 38px;
 }
 
 .warehouse-shell .table-row-cell {
@@ -37,7 +43,7 @@
 }
 
 .warehouse-item-table .table-row-cell {
-    -fx-cell-size: 76px;
+    -fx-cell-size: 54px;
 }
 
 .warehouse-item-table .table-cell {

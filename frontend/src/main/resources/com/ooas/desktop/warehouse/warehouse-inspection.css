@@ -1,20 +1,24 @@
 .inspection-card {
     -fx-background-color: white;
-    -fx-padding: 18px;
-    -fx-background-radius: 9px;
+    -fx-padding: 12px 14px;
+    -fx-background-radius: 7px;
     -fx-border-color: #d7e3f1;
-    -fx-border-radius: 9px;
+    -fx-border-radius: 7px;
     -fx-max-width: Infinity;
 }
 
 .inspection-card .text-field,
 .inspection-card .combo-box,
 .inspection-card .date-picker {
-    -fx-pref-width: 210px;
+    -fx-pref-width: 220px;
+}
+
+.inspection-card .spinner {
+    -fx-pref-width: 120px;
 }
 
 .inspection-item-title {
-    -fx-font-size: 16px;
+    -fx-font-size: 14px;
     -fx-font-weight: 800;
     -fx-text-fill: #163a63;
 }
